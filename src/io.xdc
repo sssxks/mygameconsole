@@ -175,23 +175,17 @@ set_property IOSTANDARD LVCMOS18 [get_ports reset_n]
 # set_property IOSTANDARD LVCMOS15 [get_ports {switch[14]}]
 # set_property IOSTANDARD LVCMOS15 [get_ports {switch[15]}]
 
-# Controller Inputs (using DIP switches 0-7)
-set_property PACKAGE_PIN AA10 [get_ports {controller_in[0]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {controller_in[0]}]
-set_property PACKAGE_PIN AB10 [get_ports {controller_in[1]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {controller_in[1]}]
-set_property PACKAGE_PIN AA13 [get_ports {controller_in[2]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {controller_in[2]}]
-set_property PACKAGE_PIN AA12 [get_ports {controller_in[3]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {controller_in[3]}]
-set_property PACKAGE_PIN Y13 [get_ports {controller_in[4]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {controller_in[4]}]
-set_property PACKAGE_PIN Y12 [get_ports {controller_in[5]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {controller_in[5]}]
-set_property PACKAGE_PIN AD11 [get_ports {controller_in[6]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {controller_in[6]}]
-set_property PACKAGE_PIN AD10 [get_ports {controller_in[7]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {controller_in[7]}]
+set_property PACKAGE_PIN N18 [get_ports ps2_clk]
+set_property IOSTANDARD LVCMOS33 [get_ports ps2_clk]
+# Add PULLUP TRUE if your FPGA supports internal pullups and you want to use them,
+# otherwise ensure external pullups are present.
+# set_property PULLUP TRUE [get_ports ps2_clk]
+
+set_property PACKAGE_PIN M19 [get_ports ps2_data]
+set_property IOSTANDARD LVCMOS33 [get_ports ps2_data]
+# Add PULLUP TRUE if your FPGA supports internal pullups and you want to use them,
+# otherwise ensure external pullups are present.
+# set_property PULLUP TRUE [get_ports ps2_data]
 
 # VGA Outputs
 set_property PACKAGE_PIN N21 [get_ports {vga_r[0]}]

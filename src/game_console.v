@@ -3,9 +3,9 @@ module game_console (
     input wire clk,          // System clock (100MHz)
     input wire reset_n,      // Asynchronous reset (active low)
 
-    // Controller Inputs (Placeholder - define based on your controller)
-    // Example: 8-bit input for D-pad and buttons
-    input wire [7:0] controller_in,
+    // PS/2 Keyboard Inputs
+    input wire ps2_clk,    // PS/2 Clock from keyboard
+    input wire ps2_data,   // PS/2 Data from keyboard
 
     // VGA Outputs
     output wire vga_hsync,   // Horizontal Sync
@@ -18,18 +18,43 @@ module game_console (
     wire clk_40;
     wire locked;
 
+    // Wires from VGA controller, used for drawing logic
+    wire display_enable_internal; 
+    wire [9:0] pixel_x_internal;  
+    wire [9:0] pixel_y_internal;  
+    wire video_on_internal;     
+
     // Wires for color data to VGA controller
     wire [3:0] color_r_to_vga;
     wire [3:0] color_g_to_vga;
     wire [3:0] color_b_to_vga;
 
-    // Assign a dynamic color based on pixel coordinates
-    // pixel_x_internal ranges 0-799 (H_DISPLAY-1)
-    // pixel_y_internal ranges 0-599 (V_DISPLAY-1)
-    // Use upper bits for 4-bit color. E.g. pixel_x_internal[9:6] and pixel_y_internal[9:6]
-    assign color_r_to_vga = pixel_x_internal[9:6]; // Red from X coord
-    assign color_g_to_vga = 4'b0000;                // Green is off for now
-    assign color_b_to_vga = pixel_y_internal[9:6]; // Blue from Y coord
+    // Define rectangle coordinates (e.g., a 400x300 rectangle in the middle)
+    // For 800x600 display
+    localparam RECT_X1 = 200; // Start X
+    localparam RECT_Y1 = 150; // Start Y
+    localparam RECT_X2 = 600; // End X (exclusive, so width is RECT_X2 - RECT_X1 = 400)
+    localparam RECT_Y2 = 450; // End Y (exclusive, so height is RECT_Y2 - RECT_Y1 = 300)
+
+    // Scan codes for keys (make codes)
+    localparam KEY_R = 8'h2D;
+    localparam KEY_G = 8'h34;
+    localparam KEY_B = 8'h32;
+    localparam KEY_W = 8'h1D; // For White
+
+    // Registers for rectangle color, controlled by keyboard
+    reg [3:0] rect_color_r_reg;
+    reg [3:0] rect_color_g_reg;
+    reg [3:0] rect_color_b_reg;
+
+    // Logic to draw a colored rectangle on a black background
+    // pixel_x_internal and pixel_y_internal are outputs from vga_controller
+    assign color_r_to_vga = (video_on_internal && pixel_x_internal >= RECT_X1 && pixel_x_internal < RECT_X2 &&
+                             pixel_y_internal >= RECT_Y1 && pixel_y_internal < RECT_Y2) ? rect_color_r_reg : 4'b0000;
+    assign color_g_to_vga = (video_on_internal && pixel_x_internal >= RECT_X1 && pixel_x_internal < RECT_X2 &&
+                             pixel_y_internal >= RECT_Y1 && pixel_y_internal < RECT_Y2) ? rect_color_g_reg : 4'b0000;
+    assign color_b_to_vga = (video_on_internal && pixel_x_internal >= RECT_X1 && pixel_x_internal < RECT_X2 &&
+                             pixel_y_internal >= RECT_Y1 && pixel_y_internal < RECT_Y2) ? rect_color_b_reg : 4'b0000;
 
     clk_wiz_0 clk_gen(
         .clk_in1(clk),
@@ -41,12 +66,25 @@ module game_console (
 
     // Downstream logic should be reset if system reset is active OR PLL is not locked
     wire vga_reset_n;       // Active-low reset for vga_controller, gated by 'locked'
-    assign vga_reset_n = reset_n | ~locked;
+    assign vga_reset_n = reset_n & locked;
 
-    wire display_enable_internal; // To connect to vga_controller's display_enable output if needed elsewhere
-    wire [9:0] pixel_x_internal;  // To connect to vga_controller's pixel_x output
-    wire [9:0] pixel_y_internal;  // To connect to vga_controller's pixel_y output
-    wire video_on_internal;     // To connect to vga_controller's video_on output
+    // --- PS/2 Keyboard Controller Wires ---
+    wire [7:0] ps2_keycode_w;
+    wire       ps2_keycode_valid_w;
+    wire       ps2_error_w;
+
+    // --- PS/2 Keyboard Controller Instance ---
+    ps2_keyboard_controller ps2_inst (
+        .clk(clk_100),              // System clock for PS/2 logic (e.g. 100MHz)
+        .reset_n(vga_reset_n),      // System reset (active low, gated by PLL lock)
+        
+        .ps2_clk_pin(ps2_clk),    // PS/2 Clock line from keyboard pin
+        .ps2_data_pin(ps2_data),  // PS/2 Data line from keyboard pin
+
+        .keycode_out(ps2_keycode_w),
+        .keycode_valid(ps2_keycode_valid_w),
+        .error_flag(ps2_error_w)
+    );
 
     vga_controller vga_inst (
         .clk(clk_40),              // Using the main clock as the pixel clock for now
@@ -69,6 +107,45 @@ module game_console (
         .video_on(video_on_internal)              // Connect new video_on signal
     );
 
-    // The controller_in is not used yet, will be used by game logic later.
+    // --- Keyboard Color Control Logic ---
+    always @(posedge clk_100 or negedge vga_reset_n) begin
+        if (!vga_reset_n) begin
+            rect_color_r_reg <= 4'b1111; // Default to White
+            rect_color_g_reg <= 4'b1111;
+            rect_color_b_reg <= 4'b1111;
+        end else begin
+            if (ps2_keycode_valid_w) begin
+                case (ps2_keycode_w)
+                    KEY_R: begin
+                        rect_color_r_reg <= 4'b1111;
+                        rect_color_g_reg <= 4'b0000;
+                        rect_color_b_reg <= 4'b0000;
+                    end
+                    KEY_G: begin
+                        rect_color_r_reg <= 4'b0000;
+                        rect_color_g_reg <= 4'b1111;
+                        rect_color_b_reg <= 4'b0000;
+                    end
+                    KEY_B: begin
+                        rect_color_r_reg <= 4'b0000;
+                        rect_color_g_reg <= 4'b0000;
+                        rect_color_b_reg <= 4'b1111;
+                    end
+                    KEY_W: begin
+                        rect_color_r_reg <= 4'b1111;
+                        rect_color_g_reg <= 4'b1111;
+                        rect_color_b_reg <= 4'b1111;
+                    end
+                    default: begin
+                        // Optional: Do nothing or revert to a default color on other key presses
+                        // For now, keeps the current color if key is not R, G, B, or W
+                    end
+                endcase
+            end
+        end
+    end
+
+    // For now, we are not using the keycode outputs beyond this demo.
+    // Game logic will use ps2_keycode_w when ps2_keycode_valid_w is high.
 
 endmodule
