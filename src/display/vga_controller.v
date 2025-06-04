@@ -18,7 +18,6 @@ module vga_controller (
     output reg [3:0] green,   // 4-bit Green
     output reg [3:0] blue,    // 4-bit Blue
 
-    output wire display_enable, // Indicates active display area
     output reg [9:0] pixel_x, // Current X coordinate (0-799 for 800 width)
     output reg [9:0] pixel_y,  // Current Y coordinate (0-599 for 600 height)
     output wire video_on        // Video_on (display enable or blanking_n) signal
@@ -105,10 +104,6 @@ module vga_controller (
     // Video_on (display enable or blanking_n) signal generation
     // Active high during the visible display area
     assign video_on = (h_count < H_DISPLAY) && (v_count < V_DISPLAY);
-
-    // Refined display_enable: This signal is high when the counters are in the visible pixel area.
-    // The counters h_count and v_count scan the *entire* line/frame, including blanking.
-    assign display_enable = video_on;
 
     // Logic for RGB output
     always @(posedge clk or negedge reset_n) begin
