@@ -1,116 +1,99 @@
-module ps2_keyboard_controller (
-    input clk,              // System clock (e.g., 50MHz or 100MHz)
-    input reset_n,          // Asynchronous reset, active low
-
-    // PS/2 Interface (from FPGA pins)
-    input ps2_clk_pin,      // PS/2 Clock line from keyboard
-    input ps2_data_pin,     // PS/2 Data line from keyboard
-
-    // Outputs
-    output reg [7:0] keycode_out, // Last valid scancode received (make/break code)
-    output reg keycode_valid,     // Pulsed high for one system clock cycle when keycode_out is valid
-    output reg error_flag         // Indicates a PS/2 communication error (e.g., parity, framing)
+module ps2_keyboard_controller(
+    input clk,
+    input reset_n,
+    input ps2_clk,
+    input ps2_data,
+    output [25:0] key_status, // One bit for each letter A-Z
+    output ps2_ready,// pass through from ps2 keyboard
+    output [9:0] ps2_data_out // pass through from ps2 keyboard
 );
-
-// Internal logic for PS/2 protocol handling, debouncing, and scan code decoding will be added here.
-
-    // --- Input Synchronizers (3-flop) ---
-    reg ps2_clk_q1, ps2_clk_q2, ps2_clk_sync;
-    reg ps2_data_q1, ps2_data_q2, ps2_data_sync;
-
+    // Internal signals
+    wire [9:0] ps2_data_out;
+    wire ps2_ready;
+    
+    // Instantiate the PS2 keyboard controller
+    ps2_keyboard ps2_controller(
+        .clk(clk),
+        .reset_n(reset_n),
+        .ps2_clk(ps2_clk),
+        .ps2_data(ps2_data),
+        .data_out(ps2_data_out),
+        .ready(ps2_ready)
+    );
+    
+    // Key status register (1 bit per key, A-Z)
+    reg [25:0] key_status_reg;
+    
+    // Extract scan code and break flag from ps2_data_out
+    wire [7:0] scan_code = ps2_data_out[7:0];
+    wire key_break = ps2_data_out[8];
+    
+    // Key mapping constants (scan codes for A-Z)
+    localparam KEY_A = 8'h1C;
+    localparam KEY_B = 8'h32;
+    localparam KEY_C = 8'h21;
+    localparam KEY_D = 8'h23;
+    localparam KEY_E = 8'h24;
+    localparam KEY_F = 8'h2B;
+    localparam KEY_G = 8'h34;
+    localparam KEY_H = 8'h33;
+    localparam KEY_I = 8'h43;
+    localparam KEY_J = 8'h3B;
+    localparam KEY_K = 8'h42;
+    localparam KEY_L = 8'h4B;
+    localparam KEY_M = 8'h3A;
+    localparam KEY_N = 8'h31;
+    localparam KEY_O = 8'h44;
+    localparam KEY_P = 8'h4D;
+    localparam KEY_Q = 8'h15;
+    localparam KEY_R = 8'h2D;
+    localparam KEY_S = 8'h1B;
+    localparam KEY_T = 8'h2C;
+    localparam KEY_U = 8'h3C;
+    localparam KEY_V = 8'h2A;
+    localparam KEY_W = 8'h1D;
+    localparam KEY_X = 8'h22;
+    localparam KEY_Y = 8'h35;
+    localparam KEY_Z = 8'h1A;
+    
+    // Update key status on each valid PS2 data
     always @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
-            ps2_clk_q1 <= 1'b1;
-            ps2_clk_q2 <= 1'b1;
-            ps2_clk_sync <= 1'b1;
-            ps2_data_q1 <= 1'b1;
-            ps2_data_q2 <= 1'b1;
-            ps2_data_sync <= 1'b1;
-        end else begin
-            ps2_clk_q1 <= ps2_clk_pin;
-            ps2_clk_q2 <= ps2_clk_q1;
-            ps2_clk_sync <= ps2_clk_q2; 
-
-            ps2_data_q1 <= ps2_data_pin;
-            ps2_data_q2 <= ps2_data_q1;
-            ps2_data_sync <= ps2_data_q2;
+            key_status_reg <= 26'b0; // Reset all keys to released state
+        end else if (ps2_ready) begin
+            case (scan_code)
+                KEY_A: key_status_reg[0] <= ~key_break; // Set if pressed (break=0), clear if released (break=1)
+                KEY_B: key_status_reg[1] <= ~key_break;
+                KEY_C: key_status_reg[2] <= ~key_break;
+                KEY_D: key_status_reg[3] <= ~key_break;
+                KEY_E: key_status_reg[4] <= ~key_break;
+                KEY_F: key_status_reg[5] <= ~key_break;
+                KEY_G: key_status_reg[6] <= ~key_break;
+                KEY_H: key_status_reg[7] <= ~key_break;
+                KEY_I: key_status_reg[8] <= ~key_break;
+                KEY_J: key_status_reg[9] <= ~key_break;
+                KEY_K: key_status_reg[10] <= ~key_break;
+                KEY_L: key_status_reg[11] <= ~key_break;
+                KEY_M: key_status_reg[12] <= ~key_break;
+                KEY_N: key_status_reg[13] <= ~key_break;
+                KEY_O: key_status_reg[14] <= ~key_break;
+                KEY_P: key_status_reg[15] <= ~key_break;
+                KEY_Q: key_status_reg[16] <= ~key_break;
+                KEY_R: key_status_reg[17] <= ~key_break;
+                KEY_S: key_status_reg[18] <= ~key_break;
+                KEY_T: key_status_reg[19] <= ~key_break;
+                KEY_U: key_status_reg[20] <= ~key_break;
+                KEY_V: key_status_reg[21] <= ~key_break;
+                KEY_W: key_status_reg[22] <= ~key_break;
+                KEY_X: key_status_reg[23] <= ~key_break;
+                KEY_Y: key_status_reg[24] <= ~key_break;
+                KEY_Z: key_status_reg[25] <= ~key_break;
+                default: key_status_reg <= key_status_reg; // No change for other keys
+            endcase
         end
     end
-
-    // --- PS/2 Clock Falling Edge Detection ---
-    reg ps2_clk_sync_prev;
-    wire ps2_clk_falling_edge;
-
-    always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin
-            ps2_clk_sync_prev <= 1'b1;
-        end else begin
-            ps2_clk_sync_prev <= ps2_clk_sync;
-        end
-    end
-
-    assign ps2_clk_falling_edge = ps2_clk_sync_prev & ~ps2_clk_sync;
-
-    // --- PS/2 Frame Reception ---
-    reg [10:0] rx_shift_reg;    // Shift register for the 11-bit frame (Start, D7-D0, Parity, Stop)
-    reg [3:0]  bit_count;       // Counts bits received (0 to 10)
-    reg        receiving_frame; // Flag to indicate if we are currently receiving a frame
-
-    always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin
-            rx_shift_reg <= 11'h000;
-            bit_count <= 4'd0;
-            receiving_frame <= 1'b0;
-            keycode_out <= 8'h00;
-            keycode_valid <= 1'b0;
-            error_flag <= 1'b0;
-        end else begin
-            keycode_valid <= 1'b0; // Default to not valid
-
-            if (ps2_clk_falling_edge) begin
-                if (!receiving_frame) begin // Start of a new frame
-                    if (~ps2_data_sync) begin // Check for start bit (must be 0)
-                        receiving_frame <= 1'b1;
-                        rx_shift_reg <= {ps2_data_sync, 10'h000}; // Start bit captured
-                        bit_count <= 4'd1; // We've received 1 bit (the start bit)
-                    end
-                end else begin // Continue receiving frame
-                    // Shift in the current data bit
-                    rx_shift_reg <= {ps2_data_sync, rx_shift_reg[10:1]};
-                    bit_count <= bit_count + 1;
-
-                    if (bit_count == 4'd10) begin // All 11 bits received (0-start, 1-8 data, 9-parity, 10-stop)
-                        receiving_frame <= 1'b0; // Done with this frame
-                        bit_count <= 4'd0;       // Reset for next frame
-
-                        // Parity check: For odd parity, XOR of data bits and parity bit should be 1
-                        // Data bits are rx_shift_reg[8:1], Parity bit is rx_shift_reg[9]
-
-                        // Frame validation: Start bit == 0, Stop bit == 1, Odd Parity correct
-                        if (rx_shift_reg[0] == 1'b0 && rx_shift_reg[10] == 1'b1 && (^(rx_shift_reg[9:1]))) begin
-                            // Data bits are D7..D0 which are rx_shift_reg[8:1]
-                            keycode_out <= rx_shift_reg[8:1];
-                            keycode_valid <= 1'b1;
-                            error_flag <= 1'b0;
-                        end else begin
-                            // Error could be framing (start/stop) or parity
-                            error_flag <= 1'b1;
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-// This will involve:
-// 1. Synchronizing ps2_clk_pin and ps2_data_pin to the system clk. (DONE)
-// 2. Detecting the falling edge of ps2_clk_pin to sample ps2_data_pin. (DONE)
-// 3. Assembling the 11-bit PS/2 frame (start bit, 8 data bits, parity bit, stop bit).
-// 4. Validating parity and framing.
-// 5. Outputting the 8 data bits as keycode_out.
-
-    initial begin
-        // These are reset in the always block now
-    end
-
+    
+    // Output the key status
+    assign key_status = key_status_reg;
+    
 endmodule

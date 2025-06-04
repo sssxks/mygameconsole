@@ -67,23 +67,20 @@ module game_console (
     // Downstream logic should be reset if system reset is active OR PLL is not locked
     wire vga_reset_n;       // Active-low reset for vga_controller, gated by 'locked'
     assign vga_reset_n = reset_n & locked;
-
-    // --- PS/2 Keyboard Controller Wires ---
-    wire [7:0] ps2_keycode_w;
-    wire       ps2_keycode_valid_w;
-    wire       ps2_error_w;
-
-    // --- PS/2 Keyboard Controller Instance ---
+    
+    // --- PS/2 Keyboard Controller ---
+    wire [7:0] ps2_keycode;
+    wire       ps2_keycode_valid;
+    // wire       ps2_error;
     ps2_keyboard_controller ps2_inst (
         .clk(clk_100),              // System clock for PS/2 logic (e.g. 100MHz)
         .reset_n(vga_reset_n),      // System reset (active low, gated by PLL lock)
         
-        .ps2_clk_pin(ps2_clk),    // PS/2 Clock line from keyboard pin
-        .ps2_data_pin(ps2_data),  // PS/2 Data line from keyboard pin
+        .ps2_clk(ps2_clk),    // PS/2 Clock line from keyboard pin
+        .ps2_data(ps2_data),  // PS/2 Data line from keyboard pin
 
-        .keycode_out(ps2_keycode_w),
-        .keycode_valid(ps2_keycode_valid_w),
-        .error_flag(ps2_error_w)
+        .data_out(ps2_keycode[7:0]), // discard extent, break
+        .ready(ps2_keycode_valid)
     );
 
     vga_controller vga_inst (
@@ -114,8 +111,8 @@ module game_console (
             rect_color_g_reg <= 4'b1111;
             rect_color_b_reg <= 4'b1111;
         end else begin
-            if (ps2_keycode_valid_w) begin
-                case (ps2_keycode_w)
+            if (ps2_keycode_valid) begin
+                case (ps2_keycode)
                     KEY_R: begin
                         rect_color_r_reg <= 4'b1111;
                         rect_color_g_reg <= 4'b0000;
@@ -146,6 +143,6 @@ module game_console (
     end
 
     // For now, we are not using the keycode outputs beyond this demo.
-    // Game logic will use ps2_keycode_w when ps2_keycode_valid_w is high.
+    // Game logic will use ps2_keycode when ps2_keycode_valid is high.
 
 endmodule
