@@ -16,7 +16,14 @@ module  RV32core(
 		
 		// Core clock and reset
 		input clk,            // System clock
-		input rst             // Synchronous reset
+		input rst,            // Synchronous reset
+		
+		// Memory-mapped I/O interface
+		output [31:0] mem_addr,  // Memory address
+		output [31:0] mem_wdata, // Memory write data
+		input  [31:0] mem_rdata, // Memory read data
+		output mem_read,        // Memory read enable
+		output mem_write        // Memory write enable
 	);
 
 	// Debug interface logic
@@ -333,11 +340,27 @@ module  RV32core(
 	);
 
 	// Load/Store unit - handles memory operations
+	wire [31:0] ls_mem_addr;
+	wire [31:0] ls_mem_wdata;
+	wire ls_mem_read;
+	wire ls_mem_write;
+	
+	assign mem_addr = ls_mem_addr;
+	assign mem_wdata = ls_mem_wdata;
+	assign mem_read = ls_mem_read;
+	assign mem_write = ls_mem_write;
+	
 	unit_load_store ls(
 		.clk(debug_clk),
 		.rst(rst),
 		.cdb(cdb),                         // Common data bus for operand updates
 		.cdb_request(load_cdb_request),     // Request to broadcast load result
+		// Memory-mapped I/O interface
+		.mem_addr(ls_mem_addr),            // Memory address output
+		.mem_wdata(ls_mem_wdata),          // Memory write data
+		.mem_rdata(mem_rdata),            // Memory read data input
+		.mem_read(ls_mem_read),           // Memory read enable
+		.mem_write(ls_mem_write),         // Memory write enable
 		.cdb_out(load_cdb_in),              // Load result data for CDB
 		// Memory operation details
 		.ls_addr_in(ls_addr),               // Calculated memory address

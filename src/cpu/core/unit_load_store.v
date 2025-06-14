@@ -19,7 +19,14 @@ module unit_load_store(
 	input[7:0]  store_q_data_in,
 	input[31:0] store_data_in,
 	output store_all_busy,
-	output store_conflict_stall
+	output store_conflict_stall,
+	
+	// Memory-mapped I/O interface
+	output [31:0] mem_addr,    // Memory address
+	output [31:0] mem_wdata,   // Memory write data
+	input  [31:0] mem_rdata,   // Memory read data
+	output mem_read,           // Memory read enable
+	output mem_write           // Memory write enable
 );
 
 	reg[2:0] load_finish;
@@ -33,8 +40,6 @@ module unit_load_store(
 	wire rs1_store_data_ready, rs2_store_data_ready, rs3_store_data_ready;
 	reg rs1_load_result_taken, rs2_load_result_taken, rs3_load_result_taken;
 	wire rs1_store_result_taken, rs2_store_result_taken, rs3_store_result_taken;
-
-
 
 	wire[31:0] rs1_load_addr, rs2_load_addr, rs3_load_addr;
 	wire[2:0] rs1_load_u_b_h_w, rs2_load_u_b_h_w, rs3_load_u_b_h_w;
@@ -60,8 +65,6 @@ module unit_load_store(
 	RS_load_line rs3_load(.clk(clk),.rst(rst),.issue(rs3_load_issue),.cdb(cdb),
 		.FU_result_taken(rs3_load_result_taken),.addr_in(ls_addr_in),.mem_u_b_h_w_in(ls_u_b_h_w_in),
 		.busy(rs3_load_busy),.addr(rs3_load_addr),.mem_u_b_h_w(rs3_load_u_b_h_w));
-
-
 
 	wire rs1_s_addr_match = rs1_store_busy && ls_addr_in == rs1_store_addr;
 	wire rs2_s_addr_match = rs2_store_busy && ls_addr_in == rs2_store_addr;
@@ -89,8 +92,6 @@ module unit_load_store(
 		.mem_u_b_h_w_in(ls_u_b_h_w_in),.data_ready(rs3_store_data_ready),
 		.busy(rs3_store_busy),.addr(rs3_store_addr),.data(rs3_store_data),.mem_u_b_h_w(rs3_store_u_b_h_w));
 
-
-
 	wire rs1_load_out = rs1_load_busy & ~load_finish[2] & ~|load_from_store[2];
 	wire rs2_load_out = ~rs1_load_out & rs2_load_busy & ~load_finish[1] & ~|load_from_store[1];
 	wire rs3_load_out = ~rs2_load_out & rs3_load_busy & ~load_finish[0] & ~|load_from_store[0];
@@ -102,8 +103,6 @@ module unit_load_store(
 	assign rs2_store_result_taken = rs2_store_out;
 	assign rs3_store_result_taken = rs3_store_out;
 
-
-
 	wire rs1_load_on_cdb = load_finish[2];
 	wire rs2_load_on_cdb = ~load_finish[2] & load_finish[1];
 	wire rs3_load_on_cdb = ~load_finish[2] & ~load_finish[1] & load_finish[0];
@@ -112,8 +111,14 @@ module unit_load_store(
 					rs1_load_on_cdb ? load_data[2] : rs2_load_on_cdb ? load_data[1] : load_data[0]};
 
 	wire[2:0]mem_bhw;
-	wire[31:0] mem_addr, mem_store_data, mem_load_data;
+	wire[31:0] mem_store_data;
 	wire mem_w = rs1_store_out | rs2_store_out | rs3_store_out;
+
+	// Memory-mapped I/O interface signals
+	assign mem_wdata = mem_store_data;
+	assign mem_write = mem_w;
+	assign mem_read = rs1_load_out | rs2_load_out | rs3_load_out;
+	wire[31:0] mem_load_data = mem_rdata; // Use external memory data
 
 	tristate #(32) ts_addr1(.dout(mem_addr),.din(rs1_load_addr),.en(rs1_load_out));
 	tristate #(32) ts_addr2(.dout(mem_addr),.din(rs2_load_addr),.en(rs2_load_out));
@@ -133,9 +138,8 @@ module unit_load_store(
 	tristate #(32) ts_din2(.dout(mem_store_data),.din(rs2_store_data),.en(rs2_store_out));
 	tristate #(32) ts_din3(.dout(mem_store_data),.din(rs3_store_data),.en(rs3_store_out));
 
-	RAM_B ram(.clka(clk),.addra(mem_addr),.dina(mem_store_data),.wea(mem_w),
-        .douta(mem_load_data),.mem_u_b_h_w(mem_bhw));
-
+	// RAM_B module is no longer used directly
+	// Memory access is now handled through the memory controller
 
 	always@(posedge clk or posedge rst) begin
 		if(rst) begin

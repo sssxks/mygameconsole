@@ -21,24 +21,127 @@ module game_console (
     
     clk_wiz_0 clk_gen(.clk_in1(clk),.reset(~reset_n),.clk_100(clk_100),.clk_40(clk_40),.locked(locked));
 
-    // Active-low reset for vga_controller, gated by 'locked'
-    wire vga_reset_n = reset_n & locked;
+    // Active-low reset for system components, gated by 'locked'
+    wire sys_reset_n = reset_n & locked;
     
-    // --- PS2 ---
-    wire [25:0] key_status;
-    wire [7:0] ps2_keycode;
-    wire       ps2_keycode_valid;
+    // --- Memory-mapped I/O signals ---
+    // CPU memory interface
+    wire [31:0] cpu_mem_addr;
+    wire [31:0] cpu_mem_wdata;
+    wire [31:0] cpu_mem_rdata;
+    wire cpu_mem_read;
+    wire cpu_mem_write;
+    
+    // RAM interface
+    wire ram_read;
+    wire ram_write;
+    wire [31:0] ram_addr;
+    wire [31:0] ram_wdata;
+    wire [31:0] ram_rdata;
+    
+    // Keyboard interface
+    wire kb_read;
+    wire [7:0] kb_addr;
+    wire [31:0] kb_rdata;
+    
+    // Display interface
+    wire disp_write;
+    wire [15:0] disp_addr;
+    wire [31:0] disp_wdata;
+    
+    // --- Keyboard Module ---
+    keyboard keyboard_inst (
+        .clk(clk_100),              // System clock for keyboard logic
+        .reset_n(sys_reset_n),      // System reset (active low)
+        
+        .ps2_clk(ps2_clk),         // PS/2 Clock line from keyboard pin
+        .ps2_data(ps2_data),       // PS/2 Data line from keyboard pin
+        
+        // Memory-mapped interface
+        .mem_read(kb_read),
+        .mem_addr(kb_addr),
+        .mem_rdata(kb_rdata)
+    );
 
-    ps2_keyboard_controller ps2_inst (
-        .clk(clk_100),              // System clock for PS/2 logic (e.g. 100MHz)
-        .reset_n(vga_reset_n),      // System reset (active low, gated by PLL lock)
+    // --- Display Controller ---
+    display display_inst (
+        .clk_40(clk_40),           // 40MHz clock for VGA timing
+        .reset_n(sys_reset_n),      // System reset
         
-        .ps2_clk(ps2_clk),    // PS/2 Clock line from keyboard pin
-        .ps2_data(ps2_data),  // PS/2 Data line from keyboard pin
+        // VGA outputs
+        .vga_hsync(vga_hsync),
+        .vga_vsync(vga_vsync),
+        .vga_r(vga_r),
+        .vga_g(vga_g),
+        .vga_b(vga_b),
         
-        .key_status(key_status),
-        .ps2_ready(ps2_keycode_valid),
-        .ps2_data_out(ps2_keycode[7:0])// discard extent, break
+        // Memory-mapped interface
+        .clk_cpu(clk_100),         // CPU clock domain
+        .mem_write(disp_write),
+        .mem_addr(disp_addr),
+        .mem_wdata(disp_wdata)
+    );
+    
+    // --- Memory Controller ---
+    memory_controller mem_ctrl (        
+        // CPU memory interface
+        .addr(cpu_mem_addr),
+        .wdata(cpu_mem_wdata),
+        .rdata(cpu_mem_rdata),
+        .mem_read(cpu_mem_read),
+        .mem_write(cpu_mem_write),
+        
+        // RAM interface
+        .ram_read(ram_read),
+        .ram_write(ram_write),
+        .ram_addr(ram_addr),
+        .ram_wdata(ram_wdata),
+        .ram_rdata(ram_rdata),
+        
+        // Keyboard interface
+        .kb_read(kb_read),
+        .kb_addr(kb_addr),
+        .kb_rdata(kb_rdata),
+        
+        // Display interface
+        .disp_write(disp_write),
+        .disp_addr(disp_addr),
+        .disp_wdata(disp_wdata)
+    );
+    
+    // --- CPU Core ---
+    wire debug_en = 1'b0;
+    wire debug_step = 1'b0;
+    wire [6:0] debug_addr = 7'b0;
+    wire [39:0] debug_data;
+    
+    RV32core cpu_inst (
+        // Debug interface
+        .debug_en(debug_en),
+        .debug_step(debug_step),
+        .debug_addr(debug_addr),
+        .debug_data(debug_data),
+        
+        // Clock and reset
+        .clk(clk_100),
+        .rst(~sys_reset_n),
+        
+        // Memory-mapped I/O interface
+        .mem_addr(cpu_mem_addr),
+        .mem_wdata(cpu_mem_wdata),
+        .mem_rdata(cpu_mem_rdata),
+        .mem_read(cpu_mem_read),
+        .mem_write(cpu_mem_write)
+    );
+    
+    // RAM module for the system
+    RAM_B ram_inst (
+        .clka(clk_100),
+        .addra(ram_addr),
+        .dina(ram_wdata),
+        .wea(ram_write),
+        .douta(ram_rdata),
+        .mem_u_b_h_w(3'b000) // Word access
     );
 
 endmodule

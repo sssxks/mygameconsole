@@ -1,15 +1,15 @@
-module ps2_keyboard_controller(
+module keyboard_status_keeper(
     input clk,
     input reset_n,
     input ps2_clk,
     input ps2_data,
     output [25:0] key_status, // One bit for each letter A-Z
-    output ps2_ready,// pass through from ps2 keyboard
-    output [9:0] ps2_data_out // pass through from ps2 keyboard
+    output [9:0] ps2_data_out, // PS2 data output for keyboard module
+    output ps2_ready           // PS2 ready signal for keyboard module
 );
     // Internal signals
-    wire [9:0] ps2_data_out;
-    wire ps2_ready;
+    wire [9:0] ps2_data_internal;
+    wire ps2_ready_internal;
     
     // Instantiate the PS2 keyboard controller
     ps2_keyboard ps2_controller(
@@ -17,16 +17,16 @@ module ps2_keyboard_controller(
         .reset_n(reset_n),
         .ps2_clk(ps2_clk),
         .ps2_data(ps2_data),
-        .data_out(ps2_data_out),
-        .ready(ps2_ready)
+        .data_out(ps2_data_internal),
+        .ready(ps2_ready_internal)
     );
     
     // Key status register (1 bit per key, A-Z)
     reg [25:0] key_status_reg;
     
-    // Extract scan code and break flag from ps2_data_out
-    wire [7:0] scan_code = ps2_data_out[7:0];
-    wire key_break = ps2_data_out[8];
+    // Extract scan code and break flag from ps2_data_internal
+    wire [7:0] scan_code = ps2_data_internal[7:0];
+    wire key_break = ps2_data_internal[8];
     
     // Key mapping constants (scan codes for A-Z)
     localparam KEY_A = 8'h1C;
@@ -60,7 +60,7 @@ module ps2_keyboard_controller(
     always @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
             key_status_reg <= 26'b0; // Reset all keys to released state
-        end else if (ps2_ready) begin
+        end else if (ps2_ready_internal) begin
             case (scan_code)
                 KEY_A: key_status_reg[0] <= ~key_break; // Set if pressed (break=0), clear if released (break=1)
                 KEY_B: key_status_reg[1] <= ~key_break;
@@ -95,5 +95,9 @@ module ps2_keyboard_controller(
     
     // Output the key status
     assign key_status = key_status_reg;
+    
+    // Connect output signals
+    assign ps2_data_out = ps2_data_internal;
+    assign ps2_ready = ps2_ready_internal;
     
 endmodule

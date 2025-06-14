@@ -10,7 +10,13 @@ module display
     output wire vga_vsync,   // Vertical Sync
     output wire [3:0] vga_r, // 4-bit Red
     output wire [3:0] vga_g, // 4-bit Green
-    output wire [3:0] vga_b  // 4-bit Blue
+    output wire [3:0] vga_b, // 4-bit Blue
+    
+    // Memory-mapped interface for CPU
+    input wire clk_cpu,      // CPU clock domain
+    input wire mem_write,    // CPU write signal
+    input wire [15:0] mem_addr, // CPU address bus (16 bits for frame buffer addressing)
+    input wire [31:0] mem_wdata // CPU write data bus
 );
 
     wire [9:0] pixel_x;
@@ -21,6 +27,26 @@ module display
     wire [3:0] color_r;
     wire [3:0] color_g;
     wire [3:0] color_b;
+    
+    // Frame buffer memory (320x240 pixels, 12-bit color)
+    // Dual-port RAM: CPU writes, VGA reads
+    reg [11:0] frame_buffer [0:76799]; // 320x240 = 76800 pixels
+    
+    // CPU write interface to frame buffer
+    always @(posedge clk_cpu) begin
+        if (mem_write && mem_addr[15:14] == 2'b00) begin // Check if address is in frame buffer range
+            // Each 32-bit write can update multiple pixels
+            // Lower 12 bits for first pixel
+            frame_buffer[mem_addr[13:0]] <= mem_wdata[11:0];
+            // Upper 12 bits for second pixel (if address is aligned)
+            if (mem_addr[0] == 1'b0) begin
+                frame_buffer[mem_addr[13:0] + 1] <= mem_wdata[23:12];
+            end
+        end
+    end
+    
+    // VGA read interface from frame buffer
+    assign fb_read_data = frame_buffer[fb_read_addr];
 
     vga_controller vga_inst (
         .clk(clk_40),
@@ -56,4 +82,12 @@ module display
         .color_g(color_g),
         .color_b(color_b)
     );
+    
+    // Initialize frame buffer with a simple pattern for testing
+    integer i;
+    initial begin
+        for (i = 0; i < 76800; i = i + 1) begin
+            frame_buffer[i] = {4'h0, 4'h0, 4'h0}; // Black background
+        end
+    end
 endmodule
