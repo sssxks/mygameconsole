@@ -6,10 +6,3 @@ edition = "2024"
 [dependencies]
 panic-halt = "1.0.0"
 riscv-rt = "0.15.0"
-
-[workspace]
-members = [
-    ".",
-    "xtask",
-]
-

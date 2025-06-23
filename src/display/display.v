@@ -44,6 +44,9 @@ module display
         end
     end
 
+    // make warning less overwhelming
+    wire unused_mem_wdata = |mem_wdata[31:12];
+
     // --------------------------------------------------------------------
     // VGA READ PORT  (Port B) – synchronous read
     // --------------------------------------------------------------------

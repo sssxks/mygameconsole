@@ -1,5 +1,4 @@
 [target.riscv32i-unknown-none-elf]
-runner = "cargo xtask gen-rom-hex"
 # Enable the 'm' (multiplication/division) extension.
 rustflags = [
   "-C", "target-feature=+m",
@@ -7,7 +6,7 @@ rustflags = [
 ]
 
 [alias]
-xtask = "run -q --target x86_64-unknown-linux-gnu -p xtask --"
+xtask = "run --release --target x86_64-unknown-linux-gnu --manifest-path xtask/Cargo.toml --"
 
 [build]
 target = "riscv32i-unknown-none-elf"

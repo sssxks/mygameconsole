@@ -17,7 +17,6 @@
 
 module memory_controller (
     // CPU memory interface
-    input  wire          clk,
     input  wire [31:0]   addr,          // byte address from CPU
     input  wire [31:0]   wdata,         // write data from CPU (LSB significant)
     output reg  [31:0]   rdata,         // read data back to CPU
@@ -57,6 +56,7 @@ module memory_controller (
     localparam DISP_BASE = 4'h3;  // 0x3-------
 
     wire [3:0] addr_hi = addr[31:28];
+    wire addr_unused = addr[27:18];
     wire is_rom  = addr_hi == ROM_BASE;
     wire is_ram  = addr_hi == RAM_BASE;
     wire is_kb   = addr_hi == KB_BASE;
