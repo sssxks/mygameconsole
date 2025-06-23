@@ -4,7 +4,7 @@ module ROM_D #(
     parameter ADDR_WIDTH = 12,
     parameter MEM_SIZE   = 1 << ADDR_WIDTH
 )(
-    input  wire                 clk,   // single clock for both ports
+    input  wire                 clk,
     input  wire [ADDR_WIDTH-1:0] a,
     output reg  [31:0]          spo,
     input  wire [ADDR_WIDTH-1:0] a2,
@@ -16,9 +16,10 @@ module ROM_D #(
 
     initial $readmemh("rom.hex", inst_data);
 
-    // synchronous read – dual port
-    always @(posedge clk) begin
-        spo  <= inst_data[a];
-        spo2 <= inst_data[a2];
-    end
+    // async read
+    assign spo  = inst_data[a];
+    assign spo2 = inst_data[a2];
+    // // synchronous read – dual port
+    // always @(posedge clk) begin
+    // end
 endmodule

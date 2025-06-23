@@ -8,7 +8,6 @@ module frame_scaler (
     // VGA timing inputs
     input wire [9:0] pixel_x,      // Current pixel X position (0-799)
     input wire [9:0] pixel_y,      // Current pixel Y position (0-599)
-    input wire video_on,           // High when in active display area
     
     // Frame buffer interface
     output wire [16:0] fb_read_addr, // Address to read from 320x240 frame buffer. unit: pixel
@@ -49,26 +48,16 @@ module frame_scaler (
             color_r <= 4'b0000;
             color_g <= 4'b0000;
             color_b <= 4'b0000;
+        end else if (in_display_area) begin
+            // Inside the scaled frame buffer area - use frame buffer color
+            color_r <= fb_r;
+            color_g <= fb_g;
+            color_b <= fb_b;
         end else begin
-            if (video_on) begin
-                if (in_display_area) begin
-                    // Inside the scaled frame buffer area - use frame buffer color
-                    color_r <= fb_r;
-                    color_g <= fb_g;
-                    color_b <= fb_b;
-                end else begin
-                    // Outside the scaled frame buffer area - black padding
-                    color_r <= 4'b0000;
-                    color_g <= 4'b0000;
-                    color_b <= 4'b0000;
-                end
-            end else begin
-                // Outside active display area - black
-                color_r <= 4'b0000;
-                color_g <= 4'b0000;
-                color_b <= 4'b0000;
-            end
+            // Outside the scaled frame buffer area - green padding
+            color_r <= 4'b0000;
+            color_g <= 4'b1111;
+            color_b <= 4'b0000;
         end
     end
-
 endmodule

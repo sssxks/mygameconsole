@@ -21,7 +21,6 @@ module display
 
     wire [9:0] pixel_x;
     wire [9:0] pixel_y;
-    wire video_on = 1'b1;
     wire [16:0] fb_read_addr;
     wire [11:0] fb_read_data;
     wire [3:0] color_r;
@@ -61,29 +60,26 @@ module display
         .input_r(color_r),
         .input_g(color_g),
         .input_b(color_b),
+        .pixel_x(pixel_x),
+        .pixel_y(pixel_y),
         
         .hsync(vga_hsync),
         .vsync(vga_vsync),
         .red(vga_r),
         .green(vga_g),
-        .blue(vga_b),
+        .blue(vga_b)
 
-        .pixel_x(pixel_x),
-        .pixel_y(pixel_y),
-        .video_on(video_on)
     );
 
     frame_scaler frame_scaler_inst (
         .clk(clk_40),
         .reset_n(reset_n),
-        
-        .pixel_x(pixel_x),
-        .pixel_y(pixel_y),
-        .video_on(video_on),
-        
+                
         .fb_read_addr(fb_read_addr),
         .fb_read_data(fb_read_data),
 
+        .pixel_x(pixel_x),
+        .pixel_y(pixel_y),
         .color_r(color_r),
         .color_g(color_g),
         .color_b(color_b)
@@ -92,8 +88,8 @@ module display
     // Initialize frame buffer with a simple pattern for testing
     integer i;
     initial begin
-        for (i = 0; i < 76800; i = i + 1) begin
-            frame_buffer[i] = {4'h0, 4'h0, 4'h0}; // Black background
+        for (i = 0; i < 10000; i = i + 1) begin
+            frame_buffer[i] = {4'hF, 4'h0, 4'h0}; // Black background
         end
     end
 endmodule

@@ -56,60 +56,6 @@ module game_console (
     wire [16:0] disp_addr;
     wire [31:0] disp_wdata;
 
-    // -------------------- New synchronizer and registered I/O --------------------
-    // PS/2 input synchronizers (to clk_100 domain)
-    reg ps2_clk_sync1, ps2_clk_sync2;
-    reg ps2_data_sync1, ps2_data_sync2;
-    wire ps2_clk_sync = ps2_clk_sync2;
-    wire ps2_data_sync = ps2_data_sync2;
-
-    always @(posedge clk_100 or negedge sys_reset_n) begin
-        if (!sys_reset_n) begin
-            ps2_clk_sync1  <= 1'b0;
-            ps2_clk_sync2  <= 1'b0;
-            ps2_data_sync1 <= 1'b0;
-            ps2_data_sync2 <= 1'b0;
-        end else begin
-            ps2_clk_sync1  <= ps2_clk;
-            ps2_clk_sync2  <= ps2_clk_sync1;
-            ps2_data_sync1 <= ps2_data;
-            ps2_data_sync2 <= ps2_data_sync1;
-        end
-    end
-
-    // VGA output registering (clk_40 domain, placed in IOBs)
-    wire disp_vga_hsync;
-    wire disp_vga_vsync;
-    wire [3:0] disp_vga_r;
-    wire [3:0] disp_vga_g;
-    wire [3:0] disp_vga_b;
-
-    (* IOB = "TRUE" *) reg vga_hsync_reg, vga_vsync_reg;
-    (* IOB = "TRUE" *) reg [3:0] vga_r_reg, vga_g_reg, vga_b_reg;
-
-    always @(posedge clk_40 or negedge sys_reset_n) begin
-        if (!sys_reset_n) begin
-            vga_hsync_reg <= 1'b0;
-            vga_vsync_reg <= 1'b0;
-            vga_r_reg <= 4'b0;
-            vga_g_reg <= 4'b0;
-            vga_b_reg <= 4'b0;
-        end else begin
-            vga_hsync_reg <= disp_vga_hsync;
-            vga_vsync_reg <= disp_vga_vsync;
-            vga_r_reg <= disp_vga_r;
-            vga_g_reg <= disp_vga_g;
-            vga_b_reg <= disp_vga_b;
-        end
-    end
-
-    assign vga_hsync = vga_hsync_reg;
-    assign vga_vsync = vga_vsync_reg;
-    assign vga_r     = vga_r_reg;
-    assign vga_g     = vga_g_reg;
-    assign vga_b     = vga_b_reg;
-    // ---------------------------------------------------------------------------
-
     // --- CPU Core ---
     wire debug_en = 1'b0;
     wire debug_step = 1'b0;
@@ -196,8 +142,8 @@ module game_console (
         .clk(clk_100),              // System clock for keyboard logic
         .reset_n(sys_reset_n),      // System reset (active low)
         
-        .ps2_clk(ps2_clk_sync),         // PS/2 Clock line (synchronised)
-        .ps2_data(ps2_data_sync),       // PS/2 Data line (synchronised)
+        .ps2_clk(ps2_clk),         // PS/2 Clock line from keyboard pin
+        .ps2_data(ps2_data),       // PS/2 Data line from keyboard pin
         
         // Memory-mapped interface
         .mem_read(kb_read),
@@ -211,11 +157,11 @@ module game_console (
         .reset_n(sys_reset_n),      // System reset
         
         // VGA outputs
-        .vga_hsync(disp_vga_hsync),
-        .vga_vsync(disp_vga_vsync),
-        .vga_r(disp_vga_r),
-        .vga_g(disp_vga_g),
-        .vga_b(disp_vga_b),
+        .vga_hsync(vga_hsync),
+        .vga_vsync(vga_vsync),
+        .vga_r(vga_r),
+        .vga_g(vga_g),
+        .vga_b(vga_b),
         
         // Memory-mapped interface
         .clk_cpu(clk_100),         // CPU clock domain

@@ -7,7 +7,16 @@ use riscv_rt::entry;
 // Panic handler
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+    loop {
+        for i in 0..FB_WORDS {
+            let value: u32 = 0xFFF;
+    
+            unsafe {
+                let addr = DISP_BASE.add(i);
+                core::ptr::write_volatile(addr, value)
+            };
+        }
+    }
 }
 
 // -----------------------------------------------------------------------------

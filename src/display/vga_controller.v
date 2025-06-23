@@ -6,6 +6,8 @@ module vga_controller (
     input wire reset_n,      // Asynchronous reset (active low)
 
     // Color inputs from game logic
+    output reg [9:0] pixel_x, // Current X coordinate (0-799 for 800 width)
+    output reg [9:0] pixel_y,  // Current Y coordinate (0-599 for 600 height)
     input wire [3:0] input_r, // 4-bit Red input
     input wire [3:0] input_g, // 4-bit Green input
     input wire [3:0] input_b, // 4-bit Blue input
@@ -15,11 +17,7 @@ module vga_controller (
     output reg vsync,         // Vertical Sync
     output reg [3:0] red,     // 4-bit Red
     output reg [3:0] green,   // 4-bit Green
-    output reg [3:0] blue,    // 4-bit Blue
-
-    output reg [9:0] pixel_x, // Current X coordinate (0-799 for 800 width)
-    output reg [9:0] pixel_y,  // Current Y coordinate (0-599 for 600 height)
-    output wire video_on        // Video_on (display enable or blanking_n) signal
+    output reg [3:0] blue    // 4-bit Blue
 );
 
     // VGA Timing Parameters for 800x600 @ 60Hz
@@ -60,14 +58,12 @@ module vga_controller (
                 end
             end
 
-            // Update pixel_x and pixel_y based on h_count and v_count
-            // pixel_x and pixel_y should reflect the current screen coordinate when display is active
-            if ((h_count < H_DISPLAY) && (v_count < V_DISPLAY)) begin // Active display region
+            if ((h_count < H_DISPLAY) && (v_count < V_DISPLAY)) begin
                 pixel_x <= h_count[9:0];
                 pixel_y <= v_count;
             end else begin
-                pixel_x <= 10'h3FF; // Indicate invalid or out of active display range
-                pixel_y <= 10'h3FF; // Indicate invalid or out of active display range
+                pixel_x <= 10'h3FF;
+                pixel_y <= 10'h3FF;
             end
         end
     end
@@ -100,27 +96,17 @@ module vga_controller (
         end
     end
 
-    // Video_on (display enable or blanking_n) signal generation
-    // Active high during the visible display area
-    assign video_on = (h_count < H_DISPLAY) && (v_count < V_DISPLAY);
+    wire video_on = (h_count < H_DISPLAY) && (v_count < V_DISPLAY);
 
-    // Logic for RGB output
-    always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin
+    always @(posedge clk) begin
+        if (!reset_n || video_on) begin
             red   <= 4'b0000;
             green <= 4'b0000;
             blue  <= 4'b0000;
         end else begin
-            if (video_on) begin
-                // Output color based on inputs from game logic
-                red   <= input_r;
-                green <= input_g;
-                blue  <= input_b;
-            end else begin
-                red   <= 4'b0000; // Black during blanking intervals
-                green <= 4'b0000;
-                blue  <= 4'b0000;
-            end
+            red   <= input_r;
+            green <= input_g;
+            blue  <= input_b;
         end
     end
 

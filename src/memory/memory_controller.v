@@ -74,10 +74,10 @@ module memory_controller (
         ram_we     = 4'b0000;
         ram_access = 1'b0;
         ram_wdata  = wdata;
-        rom_addr   = addr[13:2];    // 4KB area, ignore upper bits
-        ram_addr   = addr[7:2];     // 64-word area
-        kb_addr    = addr[7:0];
-        disp_addr  = addr[18:2];    // 32-bit aligned to pixel / word
+        rom_addr   = addr[27:2];    // 4KB area, ignore upper bits
+        ram_addr   = addr[27:2];     // 64-word area
+        kb_addr    = addr[27:0];
+        disp_addr  = addr[27:2];    // 32-bit aligned to pixel / word
         disp_wdata = wdata;
 
         // --------------------------------------------------------------
@@ -100,7 +100,7 @@ module memory_controller (
         end
 
         // --------------------------------------------------------------
-        // WRITE path (only RAM or display)
+        // WRITE path (RAM or display)
         // --------------------------------------------------------------
         if (mem_write) begin
             if (is_ram) begin
