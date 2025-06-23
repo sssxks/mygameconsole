@@ -8,7 +8,7 @@ always @(posedge clk) tone <= tone+31'd1;
 
 wire [7:0] fullnote; //musical data([5:0] is musical notes)
 //read musical notes in ROM to fullnote
-ROM_music get_fullnote(.clk(clk), .address(tone[29:22]), .note(fullnote));
+ROM_music get_fullnote(.clk(clk), .address(tone[30:23]), .note(fullnote));
 
 wire [2:0] octave;
 wire [3:0] note;
