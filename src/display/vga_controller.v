@@ -1,4 +1,3 @@
-// Timescale directive (optional, but good practice for simulation)
 `timescale 1ns / 1ps
 
 module vga_controller (

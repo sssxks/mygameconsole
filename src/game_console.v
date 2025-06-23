@@ -27,17 +27,22 @@ module game_console (
     // --- Memory-mapped I/O signals ---
     // CPU memory interface
     wire [31:0] cpu_mem_addr;
+
+    // ROM interface
+    wire [11:0] rom_addr;
+    wire [31:0] rom_rdata;
+    wire        rom_read;
     wire [31:0] cpu_mem_wdata;
     wire [31:0] cpu_mem_rdata;
     wire cpu_mem_read;
     wire cpu_mem_write;
     
-    // RAM interface
-    wire ram_read;
-    wire ram_write;
-    wire [31:0] ram_addr;
+    // RAM interface (32-bit word, byte-enable)
+    wire [5:0]  ram_addr;
     wire [31:0] ram_wdata;
     wire [31:0] ram_rdata;
+    wire [3:0]  ram_we;
+    wire        ram_access;
     
     // Keyboard interface
     wire kb_read;
@@ -83,20 +88,30 @@ module game_console (
     );
     
     // --- Memory Controller ---
-    memory_controller mem_ctrl (        
+    // Constant word access for now (bits 2:0 = 3'b010)
+    wire [2:0] mem_bhw_const = 3'b010;
+
+    memory_controller mem_ctrl (
+        .clk(clk_100),
         // CPU memory interface
         .addr(cpu_mem_addr),
         .wdata(cpu_mem_wdata),
         .rdata(cpu_mem_rdata),
         .mem_read(cpu_mem_read),
         .mem_write(cpu_mem_write),
-        
+        .mem_u_b_h_w(mem_bhw_const),
+
+        // ROM interface
+        .rom_addr(rom_addr),
+        .rom_rdata(rom_rdata),
+        .rom_read(rom_read),
+
         // RAM interface
-        .ram_read(ram_read),
-        .ram_write(ram_write),
         .ram_addr(ram_addr),
         .ram_wdata(ram_wdata),
+        .ram_we(ram_we),
         .ram_rdata(ram_rdata),
+        .ram_access(ram_access),
         
         // Keyboard interface
         .kb_read(kb_read),
@@ -134,14 +149,21 @@ module game_console (
         .mem_write(cpu_mem_write)
     );
     
-    // RAM module for the system
+    // RAM module – 64 words / 256 bytes
     RAM_B ram_inst (
         .clka(clk_100),
         .addra(ram_addr),
         .dina(ram_wdata),
-        .wea(ram_write),
-        .douta(ram_rdata),
-        .mem_u_b_h_w(3'b000) // Word access
+        .wea(ram_we),
+        .douta(ram_rdata)
+    );
+
+    // --- ROM Instance ---
+    ROM_D rom_inst (
+        .a(rom_addr),
+        .spo(rom_rdata),
+        .a2(rom_addr),
+        .spo2() // unused
     );
 
 endmodule

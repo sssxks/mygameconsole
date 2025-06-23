@@ -23,11 +23,14 @@ module  RV32core(
 		output [31:0] mem_wdata, // Memory write data
 		input  [31:0] mem_rdata, // Memory read data
 		output mem_read,        // Memory read enable
-		output mem_write        // Memory write enable
+		output mem_write,        // Memory write enable
+
+		output [11:0] rom_addr,
+		input [31:0] rom_rdata
 	);
 
 	// Debug interface logic
-	wire debug_clk;        // Gated clock (normal or debug stepping)
+	wire debug_clk = clk;        // Gated clock (normal or debug stepping)
 	wire[39:0] debug_regs; // Register file values for debug
 	reg[39:0] Test_signal; // Internal signals for debug
 	
@@ -35,7 +38,7 @@ module  RV32core(
 	assign debug_data = |debug_addr[6:5] ? Test_signal : debug_regs;
 
 	// Clock control module for debug stepping
-	debug_clk clock(.clk(clk),.debug_en(debug_en),.debug_step(debug_step),.debug_clk(debug_clk));
+	// debug_clk clock(.clk(clk),.debug_en(debug_en),.debug_step(debug_step),.debug_clk(debug_clk));
 
 		// ----- Hazard and stall control signals -----
 	wire ls_addr_unresolved;  // Load/store address depends on pending result
@@ -140,13 +143,8 @@ module  RV32core(
 		.o(next_PC_IF)                     // Selected next PC
 	);
 
-	// Instruction memory (ROM) - fetches instruction at current PC
-	// Uses PC[8:2] as word address (PC is byte-addressed)
-	ROM_D inst_rom(
-		.a(PC_IF[8:2]),                    // Word address
-		.spo(inst_IF)                      // Instruction output
-	);
-
+	assign rom_addr = PC_IF[13:2];
+	assign inst_IF = rom_rdata;
 
 	// ----- Instruction Decode/Issue (ID) Stage -----
 	// Pipeline register between IF and ID stages
