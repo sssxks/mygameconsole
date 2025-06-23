@@ -3,3 +3,4 @@ project/
 linter/
 target/
 rom.hex
+build/
