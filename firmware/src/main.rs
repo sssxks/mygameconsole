@@ -10,15 +10,32 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
-// Entry point of the application
+// -----------------------------------------------------------------------------
+// Basic display helper
+// -----------------------------------------------------------------------------
+const DISP_BASE: *mut u32 = 0x3000_0000 as *mut u32;
+const FB_WORDS: usize = 76800;
+
+unsafe fn fill_display_pattern() {
+    for i in 0..FB_WORDS {
+        let value: u32 = if i & 1 == 0 {
+            0x0FF /*lime*/
+        } else {
+            0xF0F /*purple*/
+        };
+
+        unsafe {
+            let addr = DISP_BASE.add(i);
+            core::ptr::write_volatile(addr, value)
+        };
+    }
+}
+
 #[entry]
 fn main() -> ! {
-    // Your application logic goes here.
-    // For example, you could interact with peripherals
-    // at KB_BASE or DISP_BASE.
-
-    // An infinite loop to prevent the program from exiting
-    loop {
-        // Your main loop code
+    unsafe {
+        fill_display_pattern();
     }
+
+    loop {}
 }

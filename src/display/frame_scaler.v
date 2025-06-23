@@ -22,25 +22,26 @@ module frame_scaler (
 
     // Calculate the position of the scaled frame buffer in the 800x600 display
     // For 320x240 scaled 2x = 640x480, centered in 800x600
-    localparam H_OFFSET = (800 - 640) / 2;  // 80 pixels offset from left
-    localparam V_OFFSET = (600 - 480) / 2;  // 60 pixels offset from top
+    localparam H_OFFSET = 80;  // (800 - 640) / 2 pixels offset from left
+    localparam V_OFFSET = 60;  // (600 - 480) / 2 pixels offset from top
     
     // Determine if current pixel is within the scaled frame buffer area
     wire in_display_area = (pixel_x >= H_OFFSET) && (pixel_x < H_OFFSET + 640) && 
                            (pixel_y >= V_OFFSET) && (pixel_y < V_OFFSET + 480);
     
     // Calculate the corresponding pixel in the 320x240 frame buffer
-    // Divide by 2 to get from 640x480 back to 320x240
-    wire [8:0] fb_x = (pixel_x - H_OFFSET) >> 1;
-    wire [7:0] fb_y = (pixel_y - V_OFFSET) >> 1;
+    wire [9:0] fb_x_sub_offset = pixel_x - H_OFFSET;
+    wire [9:0] fb_y_sub_offset = pixel_y - V_OFFSET;
+    wire [8:0] fb_x = fb_x_sub_offset[9:1];
+    wire [7:0] fb_y = fb_y_sub_offset[8:1];
     
     // Calculate frame buffer read address
-    assign fb_read_addr = in_display_area ? (fb_y * 320 + fb_x) : 17'd0;
+    assign fb_read_addr = in_display_area ? (fb_y * 320 + {8'b0, fb_x}) : 17'd0;
     
     // Extract RGB components from 12-bit frame buffer data
-    wire [4:0] fb_r = fb_read_data[11:8];  // 4 bits for red
-    wire [4:0] fb_g = fb_read_data[7:4];  // 4 bits for green
-    wire [4:0] fb_b = fb_read_data[3:0];  // 4 bits for blue
+    wire [3:0] fb_r = fb_read_data[11:8];  // 4 bits for red
+    wire [3:0] fb_g = fb_read_data[7:4];  // 4 bits for green
+    wire [3:0] fb_b = fb_read_data[3:0];  // 4 bits for blue
         
     // Output color logic
     always @(posedge clk or negedge reset_n) begin

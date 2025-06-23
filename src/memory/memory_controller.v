@@ -43,7 +43,7 @@ module memory_controller (
 
     // Display – write-only 32-bit framebuffer (64KB -> 16-bit address)
     output reg           disp_write,
-    output reg  [15:0]   disp_addr,
+    output reg  [16:0]   disp_addr,
     output reg  [31:0]   disp_wdata
 );
 
@@ -56,7 +56,6 @@ module memory_controller (
     localparam DISP_BASE = 4'h3;  // 0x3-------
 
     wire [3:0] addr_hi = addr[31:28];
-    wire addr_unused = addr[27:18];
     wire is_rom  = addr_hi == ROM_BASE;
     wire is_ram  = addr_hi == RAM_BASE;
     wire is_kb   = addr_hi == KB_BASE;
@@ -78,7 +77,7 @@ module memory_controller (
         rom_addr   = addr[13:2];    // 4KB area, ignore upper bits
         ram_addr   = addr[7:2];     // 64-word area
         kb_addr    = addr[7:0];
-        disp_addr  = addr[17:2];    // 32-bit aligned to pixel / word
+        disp_addr  = addr[18:2];    // 32-bit aligned to pixel / word
         disp_wdata = wdata;
 
         // --------------------------------------------------------------
