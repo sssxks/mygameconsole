@@ -15,9 +15,19 @@ mkdir -p build
 cd build
 
 # wsl assumed
-BUILD_TCL="$SCRIPT_DIR/build.tcl"
-
 # Convert to Windows form (e.g. C:\Users\…)
+BUILD_TCL="$SCRIPT_DIR/build.tcl"
 BUILD_TCL_WIN=$(wslpath -w "$BUILD_TCL")
 
-cmd.exe /mnt/c/Xilinx/Vivado/2024.1/bin/vivado.bat -mode tcl -source "$BUILD_TCL_WIN" -quiet
+# Check for command line arguments
+if [ "$1" == "check" ]; then
+    # Only display warnings and errors
+    cmd.exe /mnt/c/Xilinx/Vivado/2024.1/bin/vivado.bat -mode tcl -source "$BUILD_TCL_WIN" -quiet 2>&1 | grep -i -E '(warning|error)'
+    exit 0
+elif [ "$1" == "verbose" ]; then
+    # Display everything including info
+    cmd.exe /mnt/c/Xilinx/Vivado/2024.1/bin/vivado.bat -mode tcl -source "$BUILD_TCL_WIN" -quiet
+    exit 0
+fi
+
+cmd.exe /mnt/c/Xilinx/Vivado/2024.1/bin/vivado.bat -mode tcl -source "$BUILD_TCL_WIN" -quiet 2>&1 | grep -v '^INFO:'

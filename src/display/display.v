@@ -29,24 +29,29 @@ module display
     wire [3:0] color_b;
     
     // Frame buffer memory (320x240 pixels, 12-bit color)
-    // Dual-port RAM: CPU writes, VGA reads
-    reg [11:0] frame_buffer [0:76799]; // 320x240 = 76800 pixels
-    
-    // CPU write interface to frame buffer
+    // True dual-port RAM: Port A = CPU writes, Port B = VGA reads
+    // The following template allows Vivado to infer block RAMs.
+    (* ram_style = "block" *) reg [11:0] frame_buffer [0:76799];
+
+    // --------------------------------------------------------------------
+    // CPU WRITE PORT  (Port A)
+    // --------------------------------------------------------------------
     always @(posedge clk_cpu) begin
-        if (mem_write && mem_addr[15:14] == 2'b00) begin // Check if address is in frame buffer range
-            // Each 32-bit write can update multiple pixels
-            // Lower 12 bits for first pixel
-            frame_buffer[mem_addr[13:0]] <= mem_wdata[11:0];
-            // Upper 12 bits for second pixel (if address is aligned)
-            if (mem_addr[0] == 1'b0) begin
-                frame_buffer[mem_addr[13:0] + 1] <= mem_wdata[23:12];
-            end
+        if (mem_write) begin
+            // Address is word-addressed (one pixel per write).
+            // mem_addr is 16 bits which covers 0-65535; higher addresses are ignored.
+            frame_buffer[{1'b0, mem_addr}] <= mem_wdata[11:0];
         end
     end
-    
-    // VGA read interface from frame buffer
-    assign fb_read_data = frame_buffer[fb_read_addr];
+
+    // --------------------------------------------------------------------
+    // VGA READ PORT  (Port B) – synchronous read
+    // --------------------------------------------------------------------
+    reg [11:0] fb_read_data_r;
+    always @(posedge clk_40) begin
+        fb_read_data_r <= frame_buffer[fb_read_addr];
+    end
+    assign fb_read_data = fb_read_data_r;
 
     vga_controller vga_inst (
         .clk(clk_40),
