@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "memory/memory_sizes.vh"
 
 module game_console (
     input wire clk,          // System clock (100MHz)
@@ -31,16 +32,17 @@ module game_console (
     wire [31:0] cpu_mem_rdata;
     wire cpu_mem_read;
     wire cpu_mem_write;
-    wire [11:0] cpu_rom_addr;
+    wire [2:0] cpu_mem_bhw;
+    wire [`ROM_ADDR_WIDTH-1:0] cpu_rom_addr;
     wire [31:0] cpu_rom_rdata;
 
     // ROM interface
-    wire [11:0] rom_addr;
+    wire [`ROM_ADDR_WIDTH-1:0] rom_addr;
     wire [31:0] rom_rdata;
     wire        rom_read;
     
     // RAM interface (32-bit word, byte-enable)
-    wire [5:0]  ram_addr;
+    wire [`RAM_ADDR_WIDTH-1:0]  ram_addr;
     wire [31:0] ram_wdata;
     wire [31:0] ram_rdata;
     wire [3:0]  ram_we;
@@ -53,7 +55,7 @@ module game_console (
     
     // Display interface
     wire disp_write;
-    wire [16:0] disp_addr;
+    wire [`DISP_ADDR_WIDTH-1:0] disp_addr;
     wire [31:0] disp_wdata;
 
     // --- CPU Core ---
@@ -78,14 +80,13 @@ module game_console (
         .mem_rdata(cpu_mem_rdata),
         .mem_read(cpu_mem_read),
         .mem_write(cpu_mem_write),
+        .mem_u_b_h_w(cpu_mem_bhw),
         
         .rom_addr(cpu_rom_addr),
         .rom_rdata(cpu_rom_rdata)
     );
 
     // --- Memory Controller ---
-    // Constant word access for now (bits 2:0 = 3'b010)
-    wire [2:0] mem_bhw_const = 3'b010;
 
     memory_controller mem_ctrl (
         // CPU memory interface
@@ -94,7 +95,7 @@ module game_console (
         .rdata(cpu_mem_rdata),
         .mem_read(cpu_mem_read),
         .mem_write(cpu_mem_write),
-        .mem_u_b_h_w(mem_bhw_const),
+        .mem_u_b_h_w(cpu_mem_bhw),
 
         // ROM interface
         .rom_addr(rom_addr),

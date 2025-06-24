@@ -26,7 +26,8 @@ module unit_load_store(
 	output [31:0] mem_wdata,   // Memory write data
 	input  [31:0] mem_rdata,   // Memory read data
 	output mem_read,           // Memory read enable
-	output mem_write           // Memory write enable
+	output mem_write,          // Memory write enable
+	output [2:0] mem_u_b_h_w   // Size/sign control to memory controller
 );
 
 	reg[2:0] load_finish;
@@ -110,7 +111,9 @@ module unit_load_store(
 	assign cdb_out = {`FU_LOAD_TAG, rs1_load_on_cdb, rs2_load_on_cdb, rs3_load_on_cdb,
 					rs1_load_on_cdb ? load_data[2] : rs2_load_on_cdb ? load_data[1] : load_data[0]};
 
-	wire[2:0]mem_bhw;
+	wire[2:0] mem_bhw;
+    // Forward currently selected access size/sign to top level
+    assign mem_u_b_h_w = mem_bhw;
 	wire[31:0] mem_store_data;
 	wire mem_w = rs1_store_out | rs2_store_out | rs3_store_out;
 

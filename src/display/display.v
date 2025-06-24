@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "memory_sizes.vh"
 
 module display
 (
@@ -15,13 +16,13 @@ module display
     // Memory-mapped interface for CPU
     input wire clk_cpu,      // CPU clock domain
     input wire mem_write,    // CPU write signal
-    input wire [16:0] mem_addr, // CPU address bus (17 bits for frame buffer addressing)
+    input wire [`DISP_ADDR_WIDTH-1:0] mem_addr, // CPU address bus
     input wire [31:0] mem_wdata // CPU write data bus
 );
 
     wire [9:0] pixel_x;
     wire [9:0] pixel_y;
-    wire [16:0] fb_read_addr;
+    wire [`DISP_ADDR_WIDTH-1:0] fb_read_addr;
     wire [11:0] fb_read_data;
     wire [3:0] color_r;
     wire [3:0] color_g;
@@ -89,7 +90,7 @@ module display
     integer i;
     initial begin
         for (i = 0; i < 10000; i = i + 1) begin
-            frame_buffer[i] = {4'hF, 4'h0, 4'h0}; // Black background
+            frame_buffer[i] = {4'hF, 4'h0, 4'h0}; // red background
         end
     end
 endmodule

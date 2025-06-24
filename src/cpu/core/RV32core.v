@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "../../memory/memory_sizes.vh"
 
 //---------------------------------------------------------
 // RV32core: Tomasulo-based 32-bit RISC-V processor core
@@ -24,8 +25,9 @@ module  RV32core(
 		input  [31:0] mem_rdata, // Memory read data
 		output mem_read,        // Memory read enable
 		output mem_write,        // Memory write enable
+        output [2:0] mem_u_b_h_w, // Size/sign control for memory access
 
-		output [11:0] rom_addr,
+		output [`ROM_ADDR_WIDTH-1:0] rom_addr,
 		input [31:0] rom_rdata
 	);
 
@@ -340,11 +342,13 @@ module  RV32core(
 	// Load/Store unit - handles memory operations
 	wire [31:0] ls_mem_addr;
 	wire [31:0] ls_mem_wdata;
+	wire [2:0]  ls_mem_bhw;
 	wire ls_mem_read;
 	wire ls_mem_write;
 	
 	assign mem_addr = ls_mem_addr;
 	assign mem_wdata = ls_mem_wdata;
+	assign mem_u_b_h_w = ls_mem_bhw;
 	assign mem_read = ls_mem_read;
 	assign mem_write = ls_mem_write;
 	
@@ -359,6 +363,7 @@ module  RV32core(
 		.mem_rdata(mem_rdata),            // Memory read data input
 		.mem_read(ls_mem_read),           // Memory read enable
 		.mem_write(ls_mem_write),         // Memory write enable
+        .mem_u_b_h_w(ls_mem_bhw),         // Size/sign control
 		.cdb_out(load_cdb_in),              // Load result data for CDB
 		// Memory operation details
 		.ls_addr_in(ls_addr),               // Calculated memory address

@@ -98,15 +98,21 @@ module vga_controller (
 
     wire video_on = (h_count < H_DISPLAY) && (v_count < V_DISPLAY);
 
-    always @(posedge clk) begin
-        if (!reset_n || video_on) begin
+    always @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
             red   <= 4'b0000;
             green <= 4'b0000;
             blue  <= 4'b0000;
-        end else begin
+        end else if (video_on) begin
+            // Within active video region – pass through pixel colors
             red   <= input_r;
             green <= input_g;
             blue  <= input_b;
+        end else begin
+            // Outside active video – output black (blanking)
+            red   <= 4'b0000;
+            green <= 4'b0000;
+            blue  <= 4'b0000;
         end
     end
 

@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "../memory/memory_sizes.vh"
 
 // Frame Scaler module - scales 320x240 8-bit RGB to 800x600 with 2x scaling and black padding
 module frame_scaler (
@@ -10,7 +11,7 @@ module frame_scaler (
     input wire [9:0] pixel_y,      // Current pixel Y position (0-599)
     
     // Frame buffer interface
-    output wire [16:0] fb_read_addr, // Address to read from 320x240 frame buffer. unit: pixel
+    output wire [`DISP_ADDR_WIDTH-1:0] fb_read_addr, // Address to read from frame buffer
     input wire [11:0] fb_read_data,   // 12-bit RGB data from frame buffer
     
     // Output to VGA

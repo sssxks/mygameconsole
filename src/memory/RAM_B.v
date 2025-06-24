@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
+`include "memory_sizes.vh"
 
 module RAM_B #(
-    // Number of 32-bit words in memory. 512 words = 2048 bytes (original capacity)
-    parameter ADDR_WIDTH = 9,
+    parameter ADDR_WIDTH = `RAM_ADDR_WIDTH,
     parameter MEM_SIZE   = 1 << ADDR_WIDTH  // word count
 )(
     input  wire               clka,

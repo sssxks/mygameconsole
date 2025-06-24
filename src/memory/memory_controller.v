@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "memory_sizes.vh"
 
 // Memory controller: handles address decoding, 32-bit alignment and
 // sub-word (byte/half-word) access logic.
@@ -25,12 +26,12 @@ module memory_controller (
     input  wire [2:0]    mem_u_b_h_w,   // size / sign control from core
 
     // ROM
-    output reg  [11:0]   rom_addr,      // 4096 word = 12-bit address
+    output reg  [`ROM_ADDR_WIDTH-1:0]   rom_addr,      // 4096 words
     input  wire [31:0]   rom_rdata,
     output reg           rom_read,
 
-    // RAM (256 bytes = 64 words)
-    output reg  [5:0]    ram_addr,      // 32-bit aligned word index
+    // RAM
+    output reg  [`RAM_ADDR_WIDTH-1:0]    ram_addr,      // 32-bit aligned word index
     output reg  [31:0]   ram_wdata,
     output reg  [3:0]    ram_we,        // byte enables
     input  wire [31:0]   ram_rdata,
@@ -38,12 +39,12 @@ module memory_controller (
 
     // Keyboard – simple read-only 32-bit registers (256 bytes)
     output reg           kb_read,
-    output reg  [7:0]    kb_addr,
+    output reg  [`KB_ADDR_WIDTH-1:0]    kb_addr,
     input  wire [31:0]   kb_rdata,
 
     // Display – write-only 32-bit framebuffer (64KB -> 16-bit address)
     output reg           disp_write,
-    output reg  [16:0]   disp_addr,
+    output reg  [`DISP_ADDR_WIDTH-1:0]   disp_addr,
     output reg  [31:0]   disp_wdata
 );
 
@@ -74,10 +75,10 @@ module memory_controller (
         ram_we     = 4'b0000;
         ram_access = 1'b0;
         ram_wdata  = wdata;
-        rom_addr   = addr[27:2];    // 4KB area, ignore upper bits
-        ram_addr   = addr[27:2];     // 64-word area
-        kb_addr    = addr[27:0];
-        disp_addr  = addr[27:2];    // 32-bit aligned to pixel / word
+        rom_addr   = {2'b0, addr[27:2]};
+        ram_addr   = {2'b0, addr[27:2]};
+        kb_addr    = {2'b0, addr[27:2]};
+        disp_addr  = {2'b0, addr[27:2]};
         disp_wdata = wdata;
 
         // --------------------------------------------------------------
