@@ -6,3 +6,12 @@ edition = "2024"
 [dependencies]
 panic-halt = "1.0.0"
 riscv-rt = "0.15.0"
+
+# Cargo.toml
+[profile.release]
+opt-level = "z"          # or "s" – “z” is the smallest
+lto            = true    # `fat` or `thin`; either is fine for size
+codegen-units  = 1
+debug          = false   # no DWARF in the artifact
+strip          = "symbols"   # needs recent cargo (≥1.71); otherwise run `rust-objcopy --strip-all`
+panic          = "abort"     # keeps just the abort stub (you’re already using `panic-halt`)
