@@ -60,37 +60,61 @@ module game_2048_logic (
     // ---------------------------------------------------------------------
     function [15:0] merge_line;
         input [15:0] in_line; // {a,b,c,d} each 4-bit
-        reg   [3:0]  t [0:3];
-        reg   [3:0]  out [0:3];
-        integer      i,j,idx;
+        reg   [3:0]  t  [0:3];
+        reg   [3:0]  out[0:3];
+        integer      i, idx;
         begin
+            // -----------------------------------------------------------------
+            // Stage 0 : initialise output array to zero to avoid unknown values
+            // -----------------------------------------------------------------
+            for (i = 0; i < 4; i = i + 1) begin
+                out[i] = 4'd0;
+            end
+
+            // -----------------------------------------------------------------
+            // Stage 1 : compress – copy non-zero tiles to the leftmost side
+            // -----------------------------------------------------------------
             {t[0], t[1], t[2], t[3]} = in_line;
-            // 1. compress non-zero to the left
             idx = 0;
             for (i = 0; i < 4; i = i + 1) begin
                 if (t[i] != 0) begin
                     out[idx] = t[i];
-                    idx = idx + 1;
+                    idx      = idx + 1;
                 end
             end
-            for (j = idx; j < 4; j = j + 1) out[j] = 0;
-            // 2. merge equal adjacent pairs
+
+            // -----------------------------------------------------------------
+            // Stage 2 : merge equal adjacent pairs (2→4, 4→8, …)
+            // -----------------------------------------------------------------
             for (i = 0; i < 3; i = i + 1) begin
                 if (out[i] != 0 && out[i] == out[i+1]) begin
-                    out[i]   = out[i] + 1; // add exponents (×2)
+                    out[i]   = out[i] + 1;
                     out[i+1] = 0;
                 end
             end
-            // 3. final compress
-            idx = 0;
-            t[0]=out[0]; t[1]=out[1]; t[2]=out[2]; t[3]=out[3];
+
+            // -----------------------------------------------------------------
+            // Stage 3 : final compress to fill any gaps caused by merging
+            // -----------------------------------------------------------------
+            t[0] = out[0];
+            t[1] = out[1];
+            t[2] = out[2];
+            t[3] = out[3];
             for (i = 0; i < 4; i = i + 1) begin
-                if (t[i]!=0) begin
-                    out[idx]=t[i];
-                    idx=idx+1;
+                out[i] = 0; // clear again
+            end
+
+            idx = 0;
+            for (i = 0; i < 4; i = i + 1) begin
+                if (t[i] != 0) begin
+                    out[idx] = t[i];
+                    idx      = idx + 1;
                 end
             end
-            for (j = idx; j < 4; j = j + 1) out[j] = 0;
+
+            // -----------------------------------------------------------------
+            // Combine array back into packed 16-bit vector
+            // -----------------------------------------------------------------
             merge_line = {out[0], out[1], out[2], out[3]};
         end
     endfunction
@@ -100,15 +124,23 @@ module game_2048_logic (
     // ---------------------------------------------------------------------
     task add_random_tile;
         integer i;
-        integer idx;
+        integer start_idx;
+        integer pos;
+        reg      found;
         begin
-            idx = lfsr[3:0]; // start position pseudo-random 0-15
+            // Choose a pseudo-random starting tile position (0-15)
+            start_idx = lfsr[3:0];
+            found     = 1'b0;
+
+            // Scan the board once, starting at start_idx and wrapping around, to
+            // locate the first empty tile. Because the loop bounds are fixed and
+            // we no longer modify the loop variable inside the body, synthesis
+            // tools can converge on the loop condition.
             for (i = 0; i < 16; i = i + 1) begin
-                if (board[idx] == 0) begin
-                    board[idx] <= (lfsr[3:1] == 3'b000) ? 2 : 1; // 12.5% chance of 4
-                    i = 16; // exit loop
-                end else begin
-                    idx = (idx + 1) & 4'hF; // wrap around 0-15
+                pos = (start_idx + i) & 4'hF;
+                if (!found && board[pos] == 0) begin
+                    board[pos] <= (lfsr[3:1] == 3'b000) ? 2 : 1; // 12.5% chance of 4, else 2
+                    found      = 1'b1; // prevent further writes this iteration
                 end
             end
         end
@@ -147,25 +179,25 @@ module game_2048_logic (
                     for (c = 0; c < 4; c = c + 1) begin
                         line_in = {board[0*4 + c], board[1*4 + c], board[2*4 + c], board[3*4 + c]};
                         line_out = merge_line(line_in);
-                        {board[0*4 + c], board[1*4 + c], board[2*4 + c], board[3*4 + c]} = line_out;
+                        {board[0*4 + c], board[1*4 + c], board[2*4 + c], board[3*4 + c]} <= line_out;
                     end
                 end else if (key_pressed[2]) begin // A (left)
                     for (r = 0; r < 4; r = r + 1) begin
                         line_in = {board[r*4 + 0], board[r*4 + 1], board[r*4 + 2], board[r*4 + 3]};
                         line_out = merge_line(line_in);
-                        {board[r*4 + 0], board[r*4 + 1], board[r*4 + 2], board[r*4 + 3]} = line_out;
+                        {board[r*4 + 0], board[r*4 + 1], board[r*4 + 2], board[r*4 + 3]} <= line_out;
                     end
                 end else if (key_pressed[1]) begin // S (down)
                     for (c = 0; c < 4; c = c + 1) begin
                         line_in = {board[3*4 + c], board[2*4 + c], board[1*4 + c], board[0*4 + c]};
                         line_out = merge_line(line_in);
-                        {board[3*4 + c], board[2*4 + c], board[1*4 + c], board[0*4 + c]} = line_out;
+                        {board[3*4 + c], board[2*4 + c], board[1*4 + c], board[0*4 + c]} <= line_out;
                     end
                 end else if (key_pressed[0]) begin // D (right)
                     for (r = 0; r < 4; r = r + 1) begin
                         line_in = {board[r*4 + 3], board[r*4 + 2], board[r*4 + 1], board[r*4 + 0]};
                         line_out = merge_line(line_in);
-                        {board[r*4 + 3], board[r*4 + 2], board[r*4 + 1], board[r*4 + 0]} = line_out;
+                        {board[r*4 + 3], board[r*4 + 2], board[r*4 + 1], board[r*4 + 0]} <= line_out;
                     end
                 end
 
@@ -207,7 +239,7 @@ module game_2048_logic (
         end
     endfunction
 
-    always @(posedge clk or negedge reset_n) begin
+    always @(posedge clk) begin
         if (!reset_n) begin
             pix_cnt <= 0;
             fb_we   <= 1'b0;
