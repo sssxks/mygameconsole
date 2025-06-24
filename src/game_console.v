@@ -24,150 +24,57 @@ module game_console (
 
     // Active-low reset for system components, gated by 'locked'
     wire sys_reset_n = reset_n & locked;
-    
-    // --- Memory-mapped I/O signals ---
-    // CPU memory interface
-    wire [31:0] cpu_mem_addr;
-    wire [31:0] cpu_mem_wdata;
-    wire [31:0] cpu_mem_rdata;
-    wire cpu_mem_read;
-    wire cpu_mem_write;
-    wire [2:0] cpu_mem_bhw;
-    wire [`ROM_ADDR_WIDTH-1:0] cpu_rom_addr;
-    wire [31:0] cpu_rom_rdata;
 
-    // ROM interface
-    wire [`ROM_ADDR_WIDTH-1:0] rom_addr;
-    wire [31:0] rom_rdata;
-    wire        rom_read;
-    
-    // RAM interface (32-bit word, byte-enable)
-    wire [`RAM_ADDR_WIDTH-1:0]  ram_addr;
-    wire [31:0] ram_wdata;
-    wire [31:0] ram_rdata;
-    wire [3:0]  ram_we;
-    wire        ram_access;
-    
-    // Keyboard interface
-    wire kb_read;
-    wire [7:0] kb_addr;
-    wire [31:0] kb_rdata;
-    
-    // Display interface
-    wire disp_write;
-    wire [`DISP_ADDR_WIDTH-1:0] disp_addr;
-    wire [31:0] disp_wdata;
+    // ------------------------------------------------------------------
+    // Keyboard interface (WASD controls)
+    // ------------------------------------------------------------------
+    wire [25:0] key_status;
+    wire [9:0]  ps2_data_dummy;
+    wire        ps2_ready_dummy;
 
-    // --- CPU Core ---
-    wire debug_en = 1'b0;
-    wire debug_step = 1'b0;
-    wire [6:0] debug_addr = 7'b0;
-    wire [39:0] debug_data;
-    RV32core cpu_inst (
-        // Debug interface
-        .debug_en(debug_en),
-        .debug_step(debug_step),
-        .debug_addr(debug_addr),
-        .debug_data(debug_data),
-        
-        // Clock and reset
+    keyboard_status_keeper kb_inst (
         .clk(clk_100),
-        .rst(~sys_reset_n),
-        
-        // Memory-mapped I/O interface
-        .mem_addr(cpu_mem_addr),
-        .mem_wdata(cpu_mem_wdata),
-        .mem_rdata(cpu_mem_rdata),
-        .mem_read(cpu_mem_read),
-        .mem_write(cpu_mem_write),
-        .mem_u_b_h_w(cpu_mem_bhw),
-        
-        .rom_addr(cpu_rom_addr),
-        .rom_rdata(cpu_rom_rdata)
+        .reset_n(sys_reset_n),
+        .ps2_clk(ps2_clk),
+        .ps2_data(ps2_data),
+        .key_status(key_status),
+        .ps2_data_out(ps2_data_dummy),
+        .ps2_ready(ps2_ready_dummy)
     );
 
-    // --- Memory Controller ---
+    // ------------------------------------------------------------------
+    // 2048 game logic → framebuffer write signals
+    // ------------------------------------------------------------------
+    wire                        fb_we;
+    wire [`DISP_ADDR_WIDTH-1:0] fb_addr;
+    wire [31:0]                 fb_wdata;
 
-    memory_controller mem_ctrl (
-        // CPU memory interface
-        .addr(cpu_mem_addr),
-        .wdata(cpu_mem_wdata),
-        .rdata(cpu_mem_rdata),
-        .mem_read(cpu_mem_read),
-        .mem_write(cpu_mem_write),
-        .mem_u_b_h_w(cpu_mem_bhw),
-
-        // ROM interface
-        .rom_addr(rom_addr),
-        .rom_rdata(rom_rdata),
-        .rom_read(rom_read),
-
-        // RAM interface
-        .ram_addr(ram_addr),
-        .ram_wdata(ram_wdata),
-        .ram_we(ram_we),
-        .ram_rdata(ram_rdata),
-        .ram_access(ram_access),
-        
-        // Keyboard interface
-        .kb_read(kb_read),
-        .kb_addr(kb_addr),
-        .kb_rdata(kb_rdata),
-        
-        // Display interface
-        .disp_write(disp_write),
-        .disp_addr(disp_addr),
-        .disp_wdata(disp_wdata)
-    );
-    
-    // RAM module – 64 words / 256 bytes
-    RAM_B ram_inst (
-        .clka(clk_100),
-        .addra(ram_addr),
-        .dina(ram_wdata),
-        .wea(ram_we),
-        .douta(ram_rdata)
-    );
-
-    // --- ROM Instance ---
-    ROM_D rom_inst (
+    game_2048_logic game_inst (
         .clk(clk_100),
-        .a(rom_addr),
-        .spo(rom_rdata),
-        .a2(cpu_rom_addr),
-        .spo2(cpu_rom_rdata)
-    );
-       
-    // --- Keyboard Module ---
-    keyboard keyboard_inst (
-        .clk(clk_100),              // System clock for keyboard logic
-        .reset_n(sys_reset_n),      // System reset (active low)
-        
-        .ps2_clk(ps2_clk),         // PS/2 Clock line from keyboard pin
-        .ps2_data(ps2_data),       // PS/2 Data line from keyboard pin
-        
-        // Memory-mapped interface
-        .mem_read(kb_read),
-        .mem_addr(kb_addr),
-        .mem_rdata(kb_rdata)
+        .reset_n(sys_reset_n),
+        .key_status(key_status),
+        .fb_we(fb_we),
+        .fb_addr(fb_addr),
+        .fb_wdata(fb_wdata)
     );
 
-    // --- Display Controller ---
-    display display_inst (
-        .clk_40(clk_40),           // 40MHz clock for VGA timing
-        .reset_n(sys_reset_n),      // System reset
-        
-        // VGA outputs
+    // ------------------------------------------------------------------
+    // Display module (VGA out)
+    // ------------------------------------------------------------------
+    display disp_inst (
+        .clk_40(clk_40),
+        .reset_n(sys_reset_n),
+        // VGA outs
         .vga_hsync(vga_hsync),
         .vga_vsync(vga_vsync),
         .vga_r(vga_r),
         .vga_g(vga_g),
         .vga_b(vga_b),
-        
-        // Memory-mapped interface
-        .clk_cpu(clk_100),         // CPU clock domain
-        .mem_write(disp_write),
-        .mem_addr(disp_addr),
-        .mem_wdata(disp_wdata)
+        // "CPU" write port
+        .clk_cpu(clk_100),
+        .mem_write(fb_we),
+        .mem_addr(fb_addr),
+        .mem_wdata(fb_wdata)
     );
+    
 endmodule
