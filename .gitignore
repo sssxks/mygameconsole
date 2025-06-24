@@ -1,0 +1,6 @@
+project/
+.vscode/
+linter/
+target/
+rom.hex
+build/
