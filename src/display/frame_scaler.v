@@ -55,10 +55,10 @@ module frame_scaler (
             color_g <= fb_g;
             color_b <= fb_b;
         end else begin
-            // Outside the scaled frame buffer area - grey padding
-            color_r <= 4'h5;
-            color_g <= 4'h5;
-            color_b <= 4'h5;
+            // Outside the scaled frame buffer area - white padding
+            color_r <= 4'hF;
+            color_g <= 4'hF;
+            color_b <= 4'hF;
         end
     end
 endmodule

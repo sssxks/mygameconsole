@@ -113,7 +113,7 @@ module game_2048_logic (
     );
 
     // Final pixel colour
-    wire [11:0] pixel_colour = in_board ? tex_colour : 12'h555; // background outside board
+    wire [11:0] pixel_colour = in_board ? tex_colour : 12'hFFF; // background outside board
 
     always @(posedge clk) begin
         if (!reset_n) begin
@@ -152,36 +152,4 @@ module tile_renderer (
         .addr (tex_addr),
         .data (colour)
     );
-endmodule
-
-// -----------------------------------------------------------------------------
-// Placeholder texture ROM – to be replaced with actual texture data
-// -----------------------------------------------------------------------------
-module tile_texture_rom (
-    input  wire        clk,
-    input  wire [15:0] addr,
-    output reg  [11:0] data
-);
-    // NOTE: Replace this behavioural ROM with your texture memory.
-    //       The lower 12 bits of `data` are RGB (4-4-4).
-    // Combinational colour lookup based on the tile value (upper 4 address bits).
-    // The same colour is used for every pixel of a tile – later you can replace this
-    // with a proper texture ROM. Colours are encoded RGB in 4-4-4 format.
-    always @(*) begin
-        case (addr[15:12]) // tile value selector
-            4'd0:  data = 12'h888; // blank cell – mid-grey
-            4'd1:  data = 12'hEEE; // 2
-            4'd2:  data = 12'hDDD; // 4
-            4'd3:  data = 12'hFFB; // 8
-            4'd4:  data = 12'hFF9; // 16
-            4'd5:  data = 12'hFF6; // 32
-            4'd6:  data = 12'hFF3; // 64
-            4'd7:  data = 12'hFD0; // 128
-            4'd8:  data = 12'hFA0; // 256
-            4'd9:  data = 12'hF70; // 512
-            4'd10: data = 12'hF40; // 1024
-            4'd11: data = 12'hF10; // 2048
-            default: data = 12'h000; // fallback black
-        endcase
-    end
 endmodule

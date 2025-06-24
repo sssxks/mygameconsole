@@ -61,9 +61,6 @@ module tb_game_console;
         #25;        // 25 ns
         reset_n = 1;
 
-        // Run the simulation long enough to observe a few VGA frames
-        #1000000;   // 1 ms simulated time
-
         $finish;
     end
 endmodule
