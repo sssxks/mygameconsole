@@ -85,27 +85,35 @@ module game_2048_logic (
     wire [8:0]  pix_x = pix_cnt % 320; // 0-319
     wire [7:0]  pix_y = pix_cnt / 320; // 0-239
 
-    // Tile indices within the board
-    wire [1:0] tile_x = (pix_x >= 40 && pix_x < 280) ? (pix_x - 40) / 60 : 2'd3;
-    wire [1:0] tile_y = pix_y / 60; // top padding = 0
-    wire [3:0] tile_val = tile_at(board_state, tile_y*4 + tile_x);
+    // Board/tile geometry parameters
+    localparam integer BOARD_X_START = 40;
+    localparam integer TILE_SIZE     = 60;
 
-    // Colour LUT (12-bit RGB)
-    function automatic [11:0] tile_colour;
-        input [3:0] val;
-        begin
-            case (val)
-                0: tile_colour = 12'hEEE;
-                1: tile_colour = 12'hFFE;
-                2: tile_colour = 12'hFFC;
-                3: tile_colour = 12'hFC8;
-                4: tile_colour = 12'hF96;
-                5: tile_colour = 12'hF74;
-                6: tile_colour = 12'hF52;
-                default: tile_colour = 12'hF30;
-            endcase
-        end
-    endfunction
+    // Tile indices within the board
+    wire [1:0] tile_x = (pix_x >= BOARD_X_START && pix_x < BOARD_X_START + 4*TILE_SIZE) ?
+                        (pix_x - BOARD_X_START) / TILE_SIZE : 2'd3;
+    wire [1:0] tile_y = pix_y / TILE_SIZE; // top padding = 0
+
+    // Is the current pixel within the 4×4 board region?
+    wire in_board = (pix_x >= BOARD_X_START && pix_x < BOARD_X_START + 4*TILE_SIZE) &&
+                    (pix_y < 4*TILE_SIZE);
+
+    // Relative pixel coordinates within the current tile (0-59)
+    wire [5:0] off_x = pix_x - (BOARD_X_START + tile_x*TILE_SIZE);
+    wire [5:0] off_y = pix_y - (tile_y*TILE_SIZE);
+
+    // Lookup the tile's texture pixel using a single renderer/ROM
+    wire [11:0] tex_colour;
+    tile_renderer u_tile_renderer (
+        .clk      (clk),
+        .off_x    (off_x),
+        .off_y    (off_y),
+        .tile_val (tile_at(board_state, tile_y*4 + tile_x)),
+        .colour   (tex_colour)
+    );
+
+    // Final pixel colour
+    wire [11:0] pixel_colour = in_board ? tex_colour : 12'h555; // background outside board
 
     always @(posedge clk) begin
         if (!reset_n) begin
@@ -115,7 +123,7 @@ module game_2048_logic (
             // write current pixel
             fb_we   <= 1'b1;
             fb_addr <= pix_cnt;
-            fb_wdata<= {20'd0, tile_colour(tile_val)}; // colour in lower 12 bits to match display.v
+            fb_wdata<= {20'd0, pixel_colour}; // colour in lower 12 bits to match display.v
 
             // advance pixel counter
             if (pix_cnt == 17'd76799)
@@ -123,5 +131,57 @@ module game_2048_logic (
             else
                 pix_cnt <= pix_cnt + 1'b1;
         end
+    end
+endmodule
+
+// -----------------------------------------------------------------------------
+// Tile renderer – maps a single board cell to a texture pixel
+// -----------------------------------------------------------------------------
+module tile_renderer (
+    input  wire        clk,
+    input  wire [5:0]  off_x,  // 0-59 within tile
+    input  wire [5:0]  off_y,  // 0-59 within tile
+    input  wire [3:0]  tile_val,
+    output wire [11:0] colour
+);
+    // Address into the texture ROM: {value, y, x} = 4 + 6 + 6 = 16 bits
+    wire [15:0] tex_addr = {tile_val, off_y, off_x};
+
+    tile_texture_rom u_tex_rom (
+        .clk  (clk),
+        .addr (tex_addr),
+        .data (colour)
+    );
+endmodule
+
+// -----------------------------------------------------------------------------
+// Placeholder texture ROM – to be replaced with actual texture data
+// -----------------------------------------------------------------------------
+module tile_texture_rom (
+    input  wire        clk,
+    input  wire [15:0] addr,
+    output reg  [11:0] data
+);
+    // NOTE: Replace this behavioural ROM with your texture memory.
+    //       The lower 12 bits of `data` are RGB (4-4-4).
+    // Combinational colour lookup based on the tile value (upper 4 address bits).
+    // The same colour is used for every pixel of a tile – later you can replace this
+    // with a proper texture ROM. Colours are encoded RGB in 4-4-4 format.
+    always @(*) begin
+        case (addr[15:12]) // tile value selector
+            4'd0:  data = 12'h888; // blank cell – mid-grey
+            4'd1:  data = 12'hEEE; // 2
+            4'd2:  data = 12'hDDD; // 4
+            4'd3:  data = 12'hFFB; // 8
+            4'd4:  data = 12'hFF9; // 16
+            4'd5:  data = 12'hFF6; // 32
+            4'd6:  data = 12'hFF3; // 64
+            4'd7:  data = 12'hFD0; // 128
+            4'd8:  data = 12'hFA0; // 256
+            4'd9:  data = 12'hF70; // 512
+            4'd10: data = 12'hF40; // 1024
+            4'd11: data = 12'hF10; // 2048
+            default: data = 12'h000; // fallback black
+        endcase
     end
 endmodule
