@@ -18,9 +18,10 @@ module game_console (
 );
     wire clk_100;
     wire clk_40;
+    wire clk_10;
     wire locked;
     
-    clk_wiz_0 clk_gen(.clk_in1(clk),.reset(~reset_n),.clk_100(clk_100),.clk_40(clk_40),.locked(locked));
+    clk_wiz_0 clk_gen(.clk_in1(clk),.reset(~reset_n),.clk_100(clk_100),.clk_40(clk_40),.clk_10(clk_10),.locked(locked));
 
     // Active-low reset for system components, gated by 'locked'
     wire sys_reset_n = reset_n & locked;
@@ -50,7 +51,7 @@ module game_console (
     wire [31:0]                 fb_wdata;
 
     game_2048_logic game_inst (
-        .clk(clk_100),
+        .clk(clk_10),
         .reset_n(sys_reset_n),
         .key_status(key_status),
         .fb_we(fb_we),
@@ -71,7 +72,7 @@ module game_console (
         .vga_g(vga_g),
         .vga_b(vga_b),
         // "CPU" write port
-        .clk_cpu(clk_100),
+        .clk_cpu(clk_10),
         .mem_write(fb_we),
         .mem_addr(fb_addr),
         .mem_wdata(fb_wdata)

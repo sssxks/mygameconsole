@@ -38,7 +38,9 @@ create_clock -period 100.000 -name clk [get_ports "clk"]
 
 
 # FPGA Reset
-set_property PACKAGE_PIN W13 [get_ports reset_n]
+# set_property PACKAGE_PIN W13 [get_ports reset_n]
+# set_property IOSTANDARD LVCMOS18 [get_ports reset_n]
+set_property PACKAGE_PIN AA10 [get_ports reset_n]
 set_property IOSTANDARD LVCMOS18 [get_ports reset_n]
 
 # # Main clock

@@ -44,8 +44,7 @@ module vga_controller (
         if (!reset_n) begin
             h_count <= 0;
             v_count <= 0;
-            pixel_x <= 0;
-            pixel_y <= 0;
+
         end else begin
             if (h_count < H_TOTAL - 1) begin
                 h_count <= h_count + 1;
@@ -90,7 +89,7 @@ module vga_controller (
 
     wire video_on = (h_count < H_DISPLAY) && (v_count < V_DISPLAY);
 
-    always @(posedge clk or negedge reset_n) begin
+    always @(posedge clk) begin
         // Set pixel coordinates
         if (video_on) begin
             pixel_x <= h_count[9:0];
