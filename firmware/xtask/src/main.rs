@@ -14,15 +14,15 @@ const MAX_WORDS: usize = 4096; // 16 KiB
 #[command(author, version, about)]
 enum Cmd {
     /// Convert <elf> → rom.hex
-    GenRomHex { elf: PathBuf },
+    Generate { elf: PathBuf },
     /// Build the firmware in release mode and generate rom.hex
-    BuildRomHex,
+    Build,
 }
 
 fn main() -> Result<()> {
     match Cmd::parse() {
-        Cmd::GenRomHex { elf } => gen_rom_hex(&elf),
-        Cmd::BuildRomHex => build_rom_hex(),
+        Cmd::Generate { elf } => gen_rom_hex(&elf),
+        Cmd::Build => build_rom_hex(),
     }
 }
 

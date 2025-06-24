@@ -57,14 +57,6 @@ module vga_controller (
                     v_count <= 0;
                 end
             end
-
-            if ((h_count < H_DISPLAY) && (v_count < V_DISPLAY)) begin
-                pixel_x <= h_count[9:0];
-                pixel_y <= v_count;
-            end else begin
-                pixel_x <= 10'h3FF;
-                pixel_y <= 10'h3FF;
-            end
         end
     end
 
@@ -99,6 +91,16 @@ module vga_controller (
     wire video_on = (h_count < H_DISPLAY) && (v_count < V_DISPLAY);
 
     always @(posedge clk or negedge reset_n) begin
+        // Set pixel coordinates
+        if (video_on) begin
+            pixel_x <= h_count[9:0];
+            pixel_y <= v_count;
+        end else begin
+            pixel_x <= 10'h3FF;
+            pixel_y <= 10'h3FF;
+        end
+
+        // Set pixel colors
         if (!reset_n) begin
             red   <= 4'b0000;
             green <= 4'b0000;

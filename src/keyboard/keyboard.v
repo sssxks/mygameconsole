@@ -1,3 +1,5 @@
+`include "memory_sizes.vh"
+
 module keyboard(
     input clk,
     input reset_n,
@@ -6,7 +8,7 @@ module keyboard(
     
     // Memory-mapped interface for CPU
     input wire mem_read,         // CPU read signal
-    input wire [7:0] mem_addr,   // CPU address bus (8 bits for simplicity)
+    input wire [`KB_ADDR_WIDTH-1:0] mem_addr,   // CPU address bus (8 bits for simplicity)
     output reg [31:0] mem_rdata  // CPU read data bus
 );
     
@@ -33,9 +35,9 @@ module keyboard(
             mem_rdata <= 32'h0;
         end else if (mem_read) begin
             case (mem_addr)
-                8'h00: mem_rdata <= {6'b0, key_status};      // Key status register
-                8'h01: mem_rdata <= {24'b0, ps2_data_out[7:0]}; // Last scan code
-                8'h02: mem_rdata <= {31'b0, ps2_ready};      // Ready flag
+                `KB_ADDR_WIDTH'h00: mem_rdata <= {6'b0, key_status};      // Key status register
+                `KB_ADDR_WIDTH'h01: mem_rdata <= {24'b0, ps2_data_out[7:0]}; // Last scan code
+                `KB_ADDR_WIDTH'h02: mem_rdata <= {31'b0, ps2_ready};      // Ready flag
                 default: mem_rdata <= 32'h0;
             endcase
         end
