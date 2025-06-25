@@ -58,7 +58,7 @@ module frame_scaler (
             // Outside the scaled frame buffer area - white padding
             color_r <= 4'hF;
             color_g <= 4'hF;
-            color_b <= 4'hF;
+            color_b <= 4'hE;
         end
     end
 endmodule

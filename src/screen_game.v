@@ -111,7 +111,9 @@ module screen_game (
                         (pix_x - BOARD_X_START) / TILE_SIZE : 2'd3;
     wire [1:0] tile_y = pix_y / TILE_SIZE;
 
-    wire in_board = (pix_x >= BOARD_X_START && pix_x < BOARD_X_START + 4*TILE_SIZE) &&
+    // seems an additional left 1px is included?
+    // quick and dirty fix here
+    wire in_board = (pix_x > BOARD_X_START && pix_x < BOARD_X_START + 4*TILE_SIZE) &&
                     (pix_y < 4*TILE_SIZE);
 
     wire [5:0] off_x = pix_x - (BOARD_X_START + tile_x*TILE_SIZE);
@@ -128,7 +130,7 @@ module screen_game (
     );
 
     // Final colour: board / white background
-    wire [11:0] pixel_colour = in_board ? tex_colour : 12'hFFF;
+    wire [11:0] pixel_colour = in_board ? tex_colour : 12'hFFE;
 
     always @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin

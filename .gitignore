@@ -5,3 +5,4 @@ target/
 rom.hex
 build/
 tile_texture.hex
+*_screen_rom.coe
