@@ -50,7 +50,7 @@ module game_console (
     wire [`DISP_ADDR_WIDTH-1:0] fb_addr;
     wire [31:0]                 fb_wdata;
 
-    game_2048_logic game_inst (
+    game_2048_main game_inst (
         .clk(clk_10),
         .reset_n(sys_reset_n),
         .key_status(key_status),

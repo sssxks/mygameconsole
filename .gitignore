@@ -4,3 +4,4 @@ linter/
 target/
 rom.hex
 build/
+tile_texture.hex

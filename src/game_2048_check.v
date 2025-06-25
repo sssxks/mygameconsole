@@ -1,11 +1,9 @@
 `timescale 1ns / 1ps
 
-module game_2048_status (
-    input  wire        clk,
-    input  wire        reset_n,
+module game_2048_check (
     input  wire [63:0] board_state,   // board state input
-    output reg         game_win,      // success mark
-    output reg         game_lose      // fail mark
+    output wire        game_win,      // success mark
+    output wire        game_lose      // fail mark
 );
 
     // 棋盘解包函数
@@ -81,22 +79,6 @@ module game_2048_status (
         end
     endfunction
 
-    // check status
-    always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin
-            game_win <= 1'b0;
-            game_lose <= 1'b0;
-        end else begin
-            // success
-            if (!game_win) begin
-                game_win <= is_win(board_state);
-            end
-            
-            // failure
-            if (!game_win && !game_lose) begin
-                game_lose <= is_lose(board_state);
-            end
-        end
-    end
-
+    assign game_win = is_win(board_state);
+    assign game_lose = !game_win && is_lose(board_state);
 endmodule

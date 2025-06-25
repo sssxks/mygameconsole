@@ -2,18 +2,20 @@
 `include "memory/memory_sizes.vh"
 
 // -----------------------------------------------------------------------------
-// 2048 Game – display + keyboard wrapper around game_2048_core
+// game_2048_main – top wrapper that selects one of four "screen_*" modules
+//                  according to the current game state.
 // -----------------------------------------------------------------------------
-// Keeps VGA-framebuffer fill and WASD edge-detection, but delegates board
-// mutations to `game_2048_core`.  The public interface is unchanged so the
-// top-level design does not need to change (just make sure to compile this
-// file instead of the old monolithic version).
+// Screen modules:
+//   screen_start : yellow start screen – exits on ANY key
+//   screen_game  : gameplay – delivers game_win / game_lose
+//   screen_win   : solid green – exits on ANY key
+//   screen_over  : solid red   – exits on ANY key
 // -----------------------------------------------------------------------------
-module game_2048_logic (
+module game_2048_main (
     input  wire                       clk,
     input  wire                       reset_n,
 
-    // Keyboard A-Z status (see keyboard_status_keeper)
+    // Keyboard A–Z status (see keyboard_status_keeper)
     input  wire [25:0]                key_status,
 
     // Framebuffer write port (to display pipeline, port A)
@@ -21,135 +23,136 @@ module game_2048_logic (
     output reg [`DISP_ADDR_WIDTH-1:0] fb_addr,
     output reg [31:0]                 fb_wdata
 );
-    // ---------------------------------------------------------------------
-    // Keyboard edge detection (W,A,S,D)
-    // ---------------------------------------------------------------------
-    reg  [3:0] key_prev;
-    wire       key_w = key_status[22]; // W
-    wire       key_a = key_status[0];  // A
-    wire       key_s = key_status[18]; // S
-    wire       key_d = key_status[3];  // D
-    wire [3:0] key_curr    = {key_w, key_a, key_s, key_d};
-    wire [3:0] key_pressed = key_curr & ~key_prev; // rising edge (1-cycle-wide)
+    // ------------------------------------------------------------------
+    // Game-state constants and register declared EARLY so we can use them for
+    // per-screen gated resets before the instantiations.
+    // ------------------------------------------------------------------
+    localparam [1:0] GAME_START = 2'd0;
+    localparam [1:0] GAME_PLAY  = 2'd1;
+    localparam [1:0] GAME_WIN   = 2'd2;
+    localparam [1:0] GAME_OVER  = 2'd3;
 
-    // ---------------------------------------------------------------------
-    // Interface to core logic
-    // ---------------------------------------------------------------------
-    reg        move_valid;
-    reg  [1:0] move_dir;
-    wire [63:0] board_state;
+    reg [1:0] game_state;
 
-    game_2048_core u_core (
+    // Per-screen resets: active only when that screen is selected.
+    wire st_reset_n = reset_n & (game_state == GAME_START);
+    wire gm_reset_n = reset_n & (game_state == GAME_PLAY );
+    wire wn_reset_n = reset_n & (game_state == GAME_WIN  );
+    wire ov_reset_n = reset_n & (game_state == GAME_OVER );
+
+    // ------------------------------------------------------------------
+    // Instantiate all screen modules
+    // ------------------------------------------------------------------
+    // START screen (yellow)
+    wire                        st_fb_we;
+    wire [`DISP_ADDR_WIDTH-1:0] st_fb_addr;
+    wire [31:0]                 st_fb_wdata;
+    wire                        st_done;
+
+    screen_start u_start (
         .clk        (clk),
-        .reset_n    (reset_n),
-        .move_valid (move_valid),
-        .move_dir   (move_dir),
-        .board_state(board_state)
+        .reset_n    (st_reset_n),
+        .key_status (key_status),
+        .fb_we      (st_fb_we),
+        .fb_addr    (st_fb_addr),
+        .fb_wdata   (st_fb_wdata),
+        .screen_done(st_done)
     );
 
-    // Generate move_valid/dir from key presses
+    // GAMEPLAY screen
+    wire                        gm_fb_we;
+    wire [`DISP_ADDR_WIDTH-1:0] gm_fb_addr;
+    wire [31:0]                 gm_fb_wdata;
+    wire                        gm_win;
+    wire                        gm_lose;
+
+    screen_game u_game (
+        .clk        (clk),
+        .reset_n    (gm_reset_n),
+        .key_status (key_status),
+        .fb_we      (gm_fb_we),
+        .fb_addr    (gm_fb_addr),
+        .fb_wdata   (gm_fb_wdata),
+        .game_win   (gm_win),
+        .game_lose  (gm_lose)
+    );
+
+    // WIN screen (green)
+    wire                        wn_fb_we;
+    wire [`DISP_ADDR_WIDTH-1:0] wn_fb_addr;
+    wire [31:0]                 wn_fb_wdata;
+    wire                        wn_done;
+
+    screen_win u_win (
+        .clk        (clk),
+        .reset_n    (wn_reset_n),
+        .key_status (key_status),
+        .fb_we      (wn_fb_we),
+        .fb_addr    (wn_fb_addr),
+        .fb_wdata   (wn_fb_wdata),
+        .screen_done(wn_done)
+    );
+
+    // OVER screen (red)
+    wire                        ov_fb_we;
+    wire [`DISP_ADDR_WIDTH-1:0] ov_fb_addr;
+    wire [31:0]                 ov_fb_wdata;
+    wire                        ov_done;
+
+    screen_over u_over (
+        .clk        (clk),
+        .reset_n    (ov_reset_n),
+        .key_status (key_status),
+        .fb_we      (ov_fb_we),
+        .fb_addr    (ov_fb_addr),
+        .fb_wdata   (ov_fb_wdata),
+        .screen_done(ov_done)
+    );
+
+    // ------------------------------------------------------------------
+    // Top-level FSM for game state
+    // ------------------------------------------------------------------
+
     always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin
-            key_prev   <= 4'b0;
-            move_valid <= 1'b0;
-            move_dir   <= 2'd0;
-        end else begin
-            key_prev   <= key_curr;
-            move_valid <= |key_pressed;  // 1-cycle pulse
+        if (!reset_n)
+            game_state <= GAME_START;
+        else begin
+            case (game_state)
+                GAME_START: if (st_done)          game_state <= GAME_PLAY;
+                GAME_PLAY : if (gm_win)           game_state <= GAME_WIN;
+                            else if (gm_lose)     game_state <= GAME_OVER;
+                GAME_WIN  : if (wn_done)          game_state <= GAME_START;
+                GAME_OVER : if (ov_done)          game_state <= GAME_START;
+                default   : game_state <= GAME_START;
+            endcase
+        end
+    end
 
-            if (|key_pressed) begin
-                // Priority: W > A > S > D (matches bit order)
-                if (key_pressed[3])      move_dir <= 2'd0; // up (W)
-                else if (key_pressed[2]) move_dir <= 2'd1; // left (A)
-                else if (key_pressed[1]) move_dir <= 2'd2; // down (S)
-                else                     move_dir <= 2'd3; // right (D)
+    // ------------------------------------------------------------------
+    // Framebuffer output multiplexer – combinational
+    // ------------------------------------------------------------------
+    always @(*) begin
+        case (game_state)
+            GAME_START: begin
+                fb_we   = st_fb_we;
+                fb_addr = st_fb_addr;
+                fb_wdata= st_fb_wdata;
             end
-        end
+            GAME_PLAY: begin
+                fb_we   = gm_fb_we;
+                fb_addr = gm_fb_addr;
+                fb_wdata= gm_fb_wdata;
+            end
+            GAME_WIN: begin
+                fb_we   = wn_fb_we;
+                fb_addr = wn_fb_addr;
+                fb_wdata= wn_fb_wdata;
+            end
+            default: begin // GAME_OVER
+                fb_we   = ov_fb_we;
+                fb_addr = ov_fb_addr;
+                fb_wdata= ov_fb_wdata;
+            end
+        endcase
     end
-
-    // ---------------------------------------------------------------------
-    // Helpers to read packed board_state
-    // ---------------------------------------------------------------------
-    function automatic [3:0] tile_at;
-        input [63:0] packed;
-        input [3:0]  idx; // 0-15
-        begin
-            tile_at = packed[idx*4 +: 4];
-        end
-    endfunction
-
-    // ---------------------------------------------------------------------
-    // Continuous framebuffer fill (one pixel per clock)
-    // ---------------------------------------------------------------------
-    reg  [16:0] pix_cnt;          // 0 … 76799 (320×240-1)
-    wire [8:0]  pix_x = pix_cnt % 320; // 0-319
-    wire [7:0]  pix_y = pix_cnt / 320; // 0-239
-
-    // Board/tile geometry parameters
-    localparam integer BOARD_X_START = 40;
-    localparam integer TILE_SIZE     = 60;
-
-    // Tile indices within the board
-    wire [1:0] tile_x = (pix_x >= BOARD_X_START && pix_x < BOARD_X_START + 4*TILE_SIZE) ?
-                        (pix_x - BOARD_X_START) / TILE_SIZE : 2'd3;
-    wire [1:0] tile_y = pix_y / TILE_SIZE; // top padding = 0
-
-    // Is the current pixel within the 4×4 board region?
-    wire in_board = (pix_x >= BOARD_X_START && pix_x < BOARD_X_START + 4*TILE_SIZE) &&
-                    (pix_y < 4*TILE_SIZE);
-
-    // Relative pixel coordinates within the current tile (0-59)
-    wire [5:0] off_x = pix_x - (BOARD_X_START + tile_x*TILE_SIZE);
-    wire [5:0] off_y = pix_y - (tile_y*TILE_SIZE);
-
-    // Lookup the tile's texture pixel using a single renderer/ROM
-    wire [11:0] tex_colour;
-    tile_renderer u_tile_renderer (
-        .clk      (clk),
-        .off_x    (off_x),
-        .off_y    (off_y),
-        .tile_val (tile_at(board_state, tile_y*4 + tile_x)),
-        .colour   (tex_colour)
-    );
-
-    // Final pixel colour
-    wire [11:0] pixel_colour = in_board ? tex_colour : 12'hFFF; // background outside board
-
-    always @(posedge clk) begin
-        if (!reset_n) begin
-            pix_cnt <= 17'd0;
-            fb_we   <= 1'b0;
-        end else begin
-            // write current pixel
-            fb_we   <= 1'b1;
-            fb_addr <= pix_cnt;
-            fb_wdata<= {20'd0, pixel_colour}; // colour in lower 12 bits to match display.v
-
-            // advance pixel counter
-            if (pix_cnt == 17'd76799)
-                pix_cnt <= 0;
-            else
-                pix_cnt <= pix_cnt + 1'b1;
-        end
-    end
-endmodule
-
-// -----------------------------------------------------------------------------
-// Tile renderer – maps a single board cell to a texture pixel
-// -----------------------------------------------------------------------------
-module tile_renderer (
-    input  wire        clk,
-    input  wire [5:0]  off_x,  // 0-59 within tile
-    input  wire [5:0]  off_y,  // 0-59 within tile
-    input  wire [3:0]  tile_val,
-    output wire [11:0] colour
-);
-    // Address into the texture ROM: {value, y, x} = 4 + 6 + 6 = 16 bits
-    wire [15:0] tex_addr = {tile_val, off_y, off_x};
-
-    tile_texture_rom u_tex_rom (
-        .clk  (clk),
-        .addr (tex_addr),
-        .data (colour)
-    );
 endmodule

@@ -18,6 +18,7 @@ module game_2048_core (
 
     input  wire        move_valid,
     input  wire [1:0]  move_dir,
+    input  wire        cheat_valid,
 
     output wire [63:0] board_state
 );
@@ -98,11 +99,12 @@ module game_2048_core (
     localparam S_MOVE   = 2'd1;  // perform move / merge
     localparam S_RAND   = 2'd2;  // add random tile after a successful move
 
-    integer r,c,idx; // re-use loop indices
+    integer r,c,idx,j; // re-use loop indices
     reg [15:0] line_in, line_out;
     reg [1:0]  state;
     reg        moved_reg;        // latched "moved" flag between cycles
     reg [1:0]  move_dir_lat;     // latched move direction
+    reg        found_pair;       // cheat helper flag
 
     // Copy of board to compare before/after a move (for change detection)
     reg [3:0] old_board [0:15];
@@ -135,7 +137,22 @@ module game_2048_core (
                 // IDLE – wait for new move request
                 //-------------------------------------------------------------
                 S_IDLE: begin
-                    if (move_valid) begin
+                    if (cheat_valid) begin
+                        // -------------------------------------------------
+                        // CHEAT – merge first pair of equal non-zero tiles
+                        // -------------------------------------------------
+                        found_pair = 1'b0;
+                        for (idx = 0; idx < 15; idx = idx + 1) begin
+                            for (j = idx + 1; j < 16; j = j + 1) begin
+                                if (!found_pair && board[idx] != 0 && board[idx] == board[j]) begin
+                                    board[idx] <= board[idx] + 1; // increment exponent (value ×2)
+                                    board[j]   <= 0;
+                                    found_pair = 1'b1;
+                                end
+                            end
+                        end
+                        // Remain in IDLE; no random tile insertion
+                    end else if (move_valid) begin
                         move_dir_lat <= move_dir;
                         // snapshot board for change detection later
                         for (idx = 0; idx < 16; idx = idx + 1) old_board[idx] = board[idx];

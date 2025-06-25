@@ -11,12 +11,13 @@ module tb_game_2048_core;
     reg reset_n = 0;
     reg move_valid = 0;
     reg [1:0] move_dir = 0;
+    reg cheat_valid = 0;
 
     wire [63:0] board_state;
 
     game_2048_core dut (
         .clk(clk), .reset_n(reset_n),
-        .move_valid(move_valid), .move_dir(move_dir),
+        .move_valid(move_valid), .move_dir(move_dir), .cheat_valid(cheat_valid),
         .board_state(board_state)
     );
 
@@ -57,6 +58,11 @@ module tb_game_2048_core;
             apply_move(3); // right
         end
 
+        // Test cheat function three times
+        repeat (3) begin
+            apply_cheat();
+        end
+
         $finish;
     end
 
@@ -69,6 +75,17 @@ module tb_game_2048_core;
             move_valid <= 1'b0;
             // FSM now needs two extra cycles: one for MOVE, one for RAND
             repeat (3) @(negedge clk);
+            display_board();
+        end
+    endtask
+
+    task apply_cheat;
+        begin
+            @(negedge clk);
+            cheat_valid <= 1'b1;
+            @(negedge clk);
+            cheat_valid <= 1'b0;
+            @(negedge clk); // allow core to apply cheat
             display_board();
         end
     endtask
